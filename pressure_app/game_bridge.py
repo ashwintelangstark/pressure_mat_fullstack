@@ -1,16 +1,12 @@
 """
 game_bridge.py
 
-Headless companion to tkinter_app.py. Instead of drawing a matplotlib
-window, it just reads the pressure mat over serial, computes the center of
-pressure the same way tkinter_app.py does, and POSTs each reading to the
-Django server so a browser-based game can poll it in near real time.
+Reads the 20x20 pressure mat over serial, computes the Center of Pressure (COP),
+and POSTs each reading to the Django server so the "Collect the Stars" browser
+game can track foot movements in real time.
 
 Usage:
     python game_bridge.py <patient_id> [serial_port]
-
-If serial_port is omitted, the first available port is used (same
-auto-detect behaviour as the desktop app's port list).
 """
 import sys
 import time
@@ -21,40 +17,53 @@ import requests
 
 SERVER_URL = "http://localhost:8000"
 BAUD_RATE = 115200
-POST_INTERVAL = 0.1  # seconds - ~10 updates/sec is plenty for a stepping game
+POST_INTERVAL = 0.08  # ~12 updates/sec for smooth responsive gameplay
 
 
 def pick_port():
     ports = serial.tools.list_ports.comports()
     if not ports:
         return None
+    # Prefer USB serial ports if available
+    for p in ports:
+        if "usb" in p.device.lower() or "cp210" in (p.description or "").lower() or "ch340" in (p.description or "").lower():
+            return p.device
     return ports[0].device
 
 
 def process_pressure_data(packet, pressure_data):
-    """Same bit-unpacking logic used in tkinter_app.py."""
+    """
+    Unpack 60-byte binary packet into 20x20 boolean/pressure matrix.
+    Each row is represented by 3 bytes (24 bits, first 20 bits are columns 0..19).
+    """
+    pressure_data.fill(0.0)
     for row in range(20):
-        for byte_idx in range(3):
-            if (row * 3 + byte_idx) >= len(packet):
-                return
-            byte = packet[row * 3 + byte_idx]
-            for bit in range(8):
-                col = byte_idx * 8 + bit
-                if col < 20:
-                    if (byte >> bit) & 0x01:
-                        dist = np.sqrt((row - 9.5) ** 2 + (col - 9.5) ** 2)
-                        pressure_data[row, col] = max(0, 200 - dist * 15)
-                    else:
-                        pressure_data[row, col] = 0
+        row_offset = row * 3
+        if row_offset + 2 >= len(packet):
+            break
+        b0 = packet[row_offset]
+        b1 = packet[row_offset + 1]
+        b2 = packet[row_offset + 2]
+
+        for bit in range(8):
+            # Columns 0..7
+            if (b0 >> bit) & 0x01:
+                pressure_data[row, bit] = 100.0
+            # Columns 8..15
+            if (b1 >> bit) & 0x01:
+                pressure_data[row, 8 + bit] = 100.0
+            # Columns 16..19
+            if bit < 4 and ((b2 >> bit) & 0x01):
+                pressure_data[row, 16 + bit] = 100.0
 
 
 def calculate_cop(pressure_data):
-    total_pressure = np.sum(pressure_data)
+    total_pressure = float(np.sum(pressure_data))
     if total_pressure <= 0:
         return None
     y_indices, x_indices = np.indices(pressure_data.shape)
-    cop_x = np.sum(x_indices * pressure_data) / total_pressure
-    cop_y = np.sum(y_indices * pressure_data) / total_pressure
+    cop_x = float(np.sum(x_indices * pressure_data) / total_pressure)
+    cop_y = float(np.sum(y_indices * pressure_data) / total_pressure)
     return cop_x, cop_y, total_pressure
 
 
@@ -68,57 +77,88 @@ def main():
     port = raw_port if (raw_port and raw_port.lower() != 'auto') else pick_port()
 
     if not port:
-        print("No serial port found. Connect the mat and try again.")
+        print("No serial port found. Connect the pressure mat and try again.")
         sys.exit(1)
 
     print(f"Connecting to {port} at {BAUD_RATE} baud for patient {patient_id}...")
-    ser = serial.Serial(port, BAUD_RATE, timeout=0.001)
+    try:
+        ser = serial.Serial(port, BAUD_RATE, timeout=0.01)
+    except Exception as e:
+        print(f"Failed to open port {port}: {e}")
+        sys.exit(1)
 
-    pressure_data = np.zeros((20, 20))
+    pressure_data = np.zeros((20, 20), dtype=float)
     frame_url = f"{SERVER_URL}/api/game/{patient_id}/frame/"
     last_post = 0.0
+    buffer = bytearray()
 
     print(f"Streaming live readings to {frame_url}. Press Ctrl+C to stop.")
 
     try:
         while True:
-            data = ser.read(ser.in_waiting or 1)
+            waiting = ser.in_waiting
+            chunk = ser.read(waiting if waiting > 0 else 1)
+            if chunk:
+                buffer.extend(chunk)
 
-            if data and b'\xFF' in data and b'\xFE' in data:
-                start_idx = data.index(b'\xFF')
-                end_idx = data.index(b'\xFE')
-
-                if end_idx > start_idx:
-                    packet = data[start_idx + 1:end_idx]
-                    if len(packet) >= 50:
+            # Process all complete 62-byte frames in buffer (0xFF + 60 data bytes + 0xFE)
+            packet_received = False
+            while len(buffer) >= 62:
+                if buffer[0] == 0xFF:
+                    if buffer[61] == 0xFE:
+                        # Valid frame found!
+                        packet = buffer[1:61]
                         process_pressure_data(packet, pressure_data)
+                        del buffer[:62]
+                        packet_received = True
+                    else:
+                        # Corrupted or misaligned, search for next 0xFF
+                        del buffer[0]
+                else:
+                    try:
+                        next_header = buffer.index(0xFF)
+                        del buffer[:next_header]
+                    except ValueError:
+                        buffer.clear()
+                        break
 
-                        now = time.time()
-                        if now - last_post >= POST_INTERVAL:
-                            cop = calculate_cop(pressure_data)
+            now = time.time()
+            if now - last_post >= POST_INTERVAL:
+                cop = calculate_cop(pressure_data)
 
-                            if cop:
-                                cop_x, cop_y, total_pressure = cop
-                                left_pressure = float(np.sum(pressure_data[:, :10]))
-                                right_pressure = float(np.sum(pressure_data[:, 10:]))
-                                total = left_pressure + right_pressure
-                                left_pct = (left_pressure / total * 100) if total > 0 else 50
-                                right_pct = (right_pressure / total * 100) if total > 0 else 50
+                if cop:
+                    cop_x, cop_y, total_pressure = cop
+                    left_pressure = float(np.sum(pressure_data[:, :10]))
+                    right_pressure = float(np.sum(pressure_data[:, 10:]))
+                    total = left_pressure + right_pressure
+                    left_pct = (left_pressure / total * 100) if total > 0 else 50.0
+                    right_pct = (right_pressure / total * 100) if total > 0 else 50.0
 
-                                payload = {
-                                    'x': float(cop_x),
-                                    'y': float(cop_y),
-                                    'left_pct': left_pct,
-                                    'right_pct': right_pct,
-                                    'total_pressure': float(total_pressure),
-                                    'port': port,
-                                }
-                                try:
-                                    requests.post(frame_url, json=payload, timeout=0.5)
-                                except requests.exceptions.RequestException as e:
-                                    print(f"Could not reach server: {e}")
+                    payload = {
+                        'x': float(cop_x),
+                        'y': float(cop_y),
+                        'left_pct': left_pct,
+                        'right_pct': right_pct,
+                        'total_pressure': float(total_pressure),
+                        'port': port,
+                        'touching': True,
+                    }
+                else:
+                    # Heartbeat so web UI knows mat is connected and live
+                    payload = {
+                        'port': port,
+                        'total_pressure': 0.0,
+                        'touching': False,
+                    }
 
-                            last_post = now
+                try:
+                    requests.post(frame_url, json=payload, timeout=0.3)
+                except requests.exceptions.RequestException as e:
+                    # Server might be restarting or busy; keep going
+                    pass
+
+                last_post = now
+
     except KeyboardInterrupt:
         print("\nStopped.")
     finally:
