@@ -46,6 +46,7 @@ urlpatterns = [
     path('api/game/<str:patient_id>/start_bridge/', views.api_start_game_bridge, name='api_start_game_bridge'),
     path('api/game/<str:patient_id>/stop_bridge/', views.api_stop_game_bridge, name='api_stop_game_bridge'),
     path('api/game/<str:patient_id>/frame/', views.api_game_frame, name='api_game_frame'),
+    path('api/game/<str:patient_id>/recalibrate/', views.api_mat_recalibrate, name='api_mat_recalibrate'),
     path('api/game/<str:patient_id>/save/', views.api_game_save, name='api_game_save'),
     path('api/game/<str:patient_id>/history/', views.get_patient_game_sessions, name='game_history'),
 ]

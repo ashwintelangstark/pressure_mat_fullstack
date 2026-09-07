@@ -10,6 +10,7 @@ Usage:
 """
 import sys
 import time
+from pathlib import Path
 import numpy as np
 import serial
 import serial.tools.list_ports
@@ -17,7 +18,7 @@ import requests
 
 SERVER_URL = "http://localhost:8000"
 BAUD_RATE = 115200
-POST_INTERVAL = 0.08  # ~12 updates/sec for smooth responsive gameplay
+POST_INTERVAL = 0.05  # 20 updates/sec for smooth synchronized real-time display
 
 
 def pick_port():
@@ -103,17 +104,52 @@ def main():
     frame_url = f"{SERVER_URL}/api/game/{patient_id}/frame/"
     last_post = 0.0
     buffer = bytearray()
+    cmd_file = Path(__file__).parent / f"cmd_{patient_id}.txt"
+    err_count = 0
 
     print(f"Connected! Streaming live readings to {frame_url}. Press Ctrl+C to stop.")
 
     try:
         while True:
+            # Check for dynamic hardware commands (e.g. 'c' for recalibrate, 't30' for threshold)
+            if cmd_file.exists():
+                try:
+                    cmd_txt = cmd_file.read_text().strip()
+                    if cmd_txt:
+                        ser.write(cmd_txt.encode())
+                        ser.flush()
+                        print(f"Dispatched hardware command to ESP32: '{cmd_txt}'")
+                    cmd_file.unlink(missing_ok=True)
+                except Exception as ce:
+                    print(f"Command error: {ce}")
+
             try:
                 waiting = ser.in_waiting
                 chunk = ser.read(waiting if waiting > 0 else 1)
+                err_count = 0
             except Exception as e:
-                print(f"Serial read error: {e}")
+                err_count += 1
+                if err_count % 20 == 1:
+                    print(f"Serial read warning ({err_count}): {e}")
                 time.sleep(0.05)
+                if err_count > 40:
+                    print(f"Port {port} disconnected. Attempting reconnect...")
+                    try:
+                        ser.close()
+                    except Exception:
+                        pass
+                    ser = None
+                    for attempt in range(10):
+                        try:
+                            ser = serial.Serial(port, BAUD_RATE, timeout=0.02)
+                            print(f"Reconnected to {port} successfully!")
+                            err_count = 0
+                            break
+                        except Exception:
+                            time.sleep(0.5)
+                    if ser is None:
+                        print("Reconnection failed.")
+                        time.sleep(1.0)
                 continue
 
             if chunk:

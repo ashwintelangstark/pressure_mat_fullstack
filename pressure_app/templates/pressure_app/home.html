@@ -560,6 +560,9 @@
                 <input type="text" id="patient-search" placeholder="Search patients..." class="search-input">
                 <button id="search-btn" class="search-btn"><i class="fas fa-search"></i></button>
             </div>
+            <a href="{% url 'start_visualization' %}" class="live-mat-btn" style="margin-left:15px; padding:12px 18px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:white; border-radius:12px; text-decoration:none; font-weight:700; display:flex; align-items:center; gap:8px; box-shadow:0 4px 14px rgba(99,102,241,0.35); transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+                <i class="fas fa-gamepad"></i> 🎮 Live Mat Cockpit
+            </a>
             <a href="{% url 'add_patient' %}" class="add-patient-btn">Add Patient</a>
             <a href="{% url 'logout' %}" class="logout-btn">Logout</a>
         </div>
@@ -646,8 +649,9 @@
                                 <i class="fas fa-chart-line"></i> View Data
                             </a>
                             <button class="card-btn start-btn" 
-                                data-patient-id="{{ patient.patient_id }}">
-                                <i class="fas fa-play"></i> New Session
+                                data-patient-id="{{ patient.patient_id }}"
+                                style="background: linear-gradient(135deg, #10b981, #059669); font-weight:700;">
+                                <i class="fas fa-gamepad"></i> Dual Cockpit (Game + Mat)
                             </button>
                             <button class="card-btn delete-btn"
                                 data-patient-id="{{ patient.patient_id }}">
@@ -1042,7 +1046,7 @@
                     alert("No patient ID specified.");
                     return;
                 }
-                window.location.href = `/loading_page/?patient_id=${encodeURIComponent(patientId)}`;
+                window.location.href = `/game/${encodeURIComponent(patientId)}/`;
             }
         });
 

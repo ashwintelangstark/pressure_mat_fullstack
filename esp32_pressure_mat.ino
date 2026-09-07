@@ -45,7 +45,7 @@ int baseline[ROWS][COLS];
 
 // --- Tuning Parameters for High Accuracy ---
 const int SETTLE_TIME_US = 75;     // Settle time for MUX & trace capacitance
-int touchThreshold = 38;          // ADC threshold above baseline to trigger cell touch
+int touchThreshold = 28;          // ADC threshold above baseline to trigger cell touch (optimized for 400-cell detection)
 const int FRAME_DELAY_MS = 10;    // Scan delay (~25 FPS real-time scan)
 
 // 60-byte payload buffer (20 rows * 3 bytes)

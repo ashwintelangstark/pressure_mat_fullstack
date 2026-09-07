@@ -119,50 +119,13 @@ def verify_patient(request, patient_id):
         return JsonResponse({'error': str(e)}, status=400)
 
 def start_visualization(request):
-    """Updated to accept patient_id parameter"""
+    """Redirect to integrated game & pressure visualization session"""
     patient_id = request.GET.get('patient_id')
     if not patient_id:
-        return JsonResponse({
-            'status': 'Patient ID required',
-            'success': False
-        }, status=400)
-    try:
-        # Get the absolute path to the launcher script
-        base_dir = Path(__file__).parent.parent
-        script_path = base_dir / "pressure_app" / "launch_tkinter.py"
-        
-        # Use CREATE_NEW_CONSOLE flag on Windows
-        startupinfo = None
-        if sys.platform == "win32" and hasattr(subprocess, 'STARTUPINFO'):
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        # Debug print
-        print(f"Attempting to launch Tkinter app with patient_id: {patient_id}")
+        first_patient = Patient.objects.first()
+        patient_id = first_patient.patient_id if first_patient else '1'
+    return redirect('game_page', patient_id=patient_id)
 
-        process = subprocess.Popen(
-            [sys.executable, str(script_path), patient_id],
-            startupinfo=startupinfo,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        
-        # Check if process started successfully
-        if process.poll() is None:
-            return JsonResponse({
-                'status': f'Visualization started for patient {patient_id}',
-                'success': True
-            })
-        else:
-            return JsonResponse({
-                'status': 'Failed to start visualization window',
-                'success': False
-            }, status=500)
-            
-    except Exception as e:
-        return JsonResponse({
-            'status': f'Failed to start: {str(e)}',
-            'success': False
-        }, status=500)
 
 def get_latest_readings(request):
     readings = PressureReading.objects.order_by('-timestamp')[:10]
@@ -690,7 +653,7 @@ def api_start_game_bridge(request, patient_id):
         patient_key = str(patient_id)
         target_port = port if port else 'auto'
 
-        # If already running on the same port, keep it running smoothly
+        # Check if this exact patient is already running on the requested port
         old_proc = BRIDGE_PROCESSES.get(patient_key)
         curr_port = BRIDGE_PORTS.get(patient_key)
         if old_proc and old_proc.poll() is None:
@@ -701,16 +664,27 @@ def api_start_game_bridge(request, patient_id):
                     'port': curr_port,
                     'message': f"Mat bridge already running on {curr_port}"
                 })
-            # Port changed, terminate old process
-            try:
-                old_proc.terminate()
-                old_proc.wait(timeout=1.0)
-            except Exception:
+
+        # Terminate any running bridge processes on the system to prevent serial port conflict
+        for pkey, proc in list(BRIDGE_PROCESSES.items()):
+            if proc and proc.poll() is None:
                 try:
-                    old_proc.kill()
+                    proc.terminate()
+                    proc.wait(timeout=0.6)
                 except Exception:
-                    pass
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+        BRIDGE_PROCESSES.clear()
+        BRIDGE_PORTS.clear()
+
+        # Also kill any orphaned game_bridge processes
+        try:
+            subprocess.run(["pkill", "-f", "game_bridge.py"], capture_output=True)
             time.sleep(0.3)
+        except Exception:
+            pass
 
         base_dir = Path(__file__).parent.parent
         script_path = base_dir / "pressure_app" / "game_bridge.py"
@@ -765,6 +739,19 @@ def api_start_game_bridge(request, patient_id):
 
 
 @csrf_exempt
+def api_mat_recalibrate(request, patient_id):
+    """Trigger zero-baseline calibration on the ESP32 matrix by creating a command signal."""
+    base_dir = Path(__file__).parent.parent
+    cmd_file = base_dir / "pressure_app" / f"cmd_{patient_id}.txt"
+    try:
+        with open(cmd_file, "w") as f:
+            f.write("c")
+        return JsonResponse({'success': True, 'message': 'Mat zero recalibration signal sent'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
 def api_stop_game_bridge(request, patient_id):
     """Stop running game bridge for patient_id."""
     patient_key = str(patient_id)
@@ -780,6 +767,10 @@ def api_stop_game_bridge(request, patient_id):
                 pass
         BRIDGE_PROCESSES.pop(patient_key, None)
         BRIDGE_PORTS.pop(patient_key, None)
+    try:
+        subprocess.run(["pkill", "-f", "game_bridge.py"], capture_output=True)
+    except Exception:
+        pass
     return JsonResponse({'success': True, 'patient_id': patient_id})
 
 

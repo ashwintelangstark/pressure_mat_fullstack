@@ -331,7 +331,7 @@
             background: rgba(255,255,255,0.22);
         }
         #matrix-inspector {
-            display: none;
+            display: block;
             margin-top: 12px;
             background: rgba(0, 0, 0, 0.45);
             padding: 12px;
@@ -362,17 +362,22 @@
 
     <!-- Top Dashboard Header -->
     <header class="dashboard-header">
-        <a class="back-link" href="/patient/{{ patient.patient_id }}/readings/">
-            <i class="fa fa-arrow-left"></i> Back to {{ patient.name }}'s Record
-        </a>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <a class="back-link" href="{% url 'home' %}">
+                <i class="fa fa-home"></i> Dashboard
+            </a>
+            <a class="back-link" href="/patient/{{ patient.patient_id }}/readings/">
+                <i class="fa fa-user"></i> {{ patient.name }}'s Records
+            </a>
+        </div>
 
         <div class="header-title-wrap">
-            <h1>Patient Dual Cockpit: Star Game & Pressure Mat</h1>
-            <div class="subtitle">Patient: <strong>{{ patient.name }}</strong> (ID: {{ patient.patient_id }}) | Fully Synchronized Real-Time Feed</div>
+            <h1>🎮 Live Mat Cockpit: Star Game & Pressure Heatmap</h1>
+            <div class="subtitle">Patient: <strong>{{ patient.name }}</strong> (ID: {{ patient.patient_id }}) | Real-Time Synchronized 20x20 Stream</div>
         </div>
 
         <div class="port-controls-bar">
-            <label for="game-port-select">🔌 COM Port:</label>
+            <label for="game-port-select">🔌 Port:</label>
             <select id="game-port-select">
                 <option value="auto">⚡ Auto-detect Port</option>
                 {% for p in ports %}
@@ -380,6 +385,9 @@
                 {% endfor %}
             </select>
             <button id="game-refresh-ports-btn" type="button" class="btn-icon" title="Refresh Available Ports">🔄</button>
+            <button id="recalibrate-zero-btn" type="button" class="btn-icon" style="background: #f59e0b; color: #1e1b4b; font-weight: 700;" title="Zero / Calibrate baseline across all 400 sensors">
+                🎯 Zero Mat Baseline
+            </button>
         </div>
     </header>
 
@@ -901,16 +909,36 @@ function updateSensorGrid() {
     }
 }
 
+toggleInspectorBtn.textContent = '✖ Collapse Sensor Bit Matrix Inspector (400 Units)';
+
 toggleInspectorBtn.addEventListener('click', () => {
-    if (matrixInspector.style.display === 'block') {
+    if (matrixInspector.style.display !== 'none') {
         matrixInspector.style.display = 'none';
-        toggleInspectorBtn.textContent = '🔍 Toggle 20x20 Sensor Cell Matrix Inspector (400 Bits)';
+        toggleInspectorBtn.textContent = '🔍 Expand 20x20 Sensor Cell Matrix Inspector (400 Units)';
     } else {
         matrixInspector.style.display = 'block';
-        toggleInspectorBtn.textContent = '✖ Close Sensor Bit Matrix Inspector';
+        toggleInspectorBtn.textContent = '✖ Collapse Sensor Bit Matrix Inspector (400 Units)';
         updateSensorGrid();
     }
 });
+
+// Zero Baseline Button handler
+const recalibrateZeroBtn = document.getElementById('recalibrate-zero-btn');
+if (recalibrateZeroBtn) {
+    recalibrateZeroBtn.addEventListener('click', async () => {
+        const badge = document.getElementById('connection-badge');
+        badge.textContent = '🎯 Zeroing baseline across all 400 sensors... Please keep mat clear';
+        badge.className = 'connected';
+        try {
+            await fetch(`/api/game/${patientId}/recalibrate/`, { method: 'POST' });
+            setTimeout(() => {
+                badge.textContent = '✅ Mat baseline zeroed successfully!';
+            }, 1200);
+        } catch (e) {
+            console.error('Recalibrate error:', e);
+        }
+    });
+}
 
 // -------------------------------------------------------------
 // COM PORT & BRIDGE MANAGEMENT
@@ -1017,7 +1045,7 @@ const initialPort = gamePortSelect ? gamePortSelect.value : 'auto';
 startMatBridge(initialPort);
 
 pollFrame();
-pollTimer = setInterval(pollFrame, 100);
+pollTimer = setInterval(pollFrame, 50);
 loop();
 </script>
 </body>

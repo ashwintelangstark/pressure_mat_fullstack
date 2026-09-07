@@ -72,8 +72,10 @@
             <li><a href="#about">About</a></li>
             <li><a href="#services">Services</a></li>
             {% if user.is_authenticated %}
+            <li><a href="/home">Dashboard</a></li>
+            <li><a href="{% url 'start_visualization' %}">Live Mat Cockpit</a></li>
             <li><a href="/logout">Logout</a></li>
-            {%else %}
+            {% else %}
             <li><a href="/login">Login</a></li>
             {% endif %}
           </ul>
