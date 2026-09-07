@@ -35,8 +35,11 @@ def pick_port():
 
 def process_pressure_data(packet, pressure_data):
     """
-    Unpack 60-byte binary packet into 20x20 boolean/pressure matrix.
-    Each row is represented by 3 bytes (24 bits, first 20 bits are columns 0..19).
+    Unpack 60-byte binary packet into 20x20 boolean/pressure matrix (7-bit clean).
+    Each row has 3 bytes:
+      Byte 0: cols 0..6  (Bits 0..6, Values: 0..127)
+      Byte 1: cols 7..13 (Bits 0..6, Values: 0..127)
+      Byte 2: cols 14..19 (Bits 0..5, Values: 0..63)
     """
     pressure_data.fill(0.0)
     for row in range(20):
@@ -47,16 +50,14 @@ def process_pressure_data(packet, pressure_data):
         b1 = packet[row_offset + 1]
         b2 = packet[row_offset + 2]
 
-        for bit in range(8):
-            # Columns 0..7
+        for bit in range(7):
             if (b0 >> bit) & 0x01:
                 pressure_data[row, bit] = 100.0
-            # Columns 8..15
             if (b1 >> bit) & 0x01:
-                pressure_data[row, 8 + bit] = 100.0
-            # Columns 16..19
-            if bit < 4 and ((b2 >> bit) & 0x01):
-                pressure_data[row, 16 + bit] = 100.0
+                pressure_data[row, 7 + bit] = 100.0
+        for bit in range(6):
+            if (b2 >> bit) & 0x01:
+                pressure_data[row, 14 + bit] = 100.0
 
 
 def calculate_cop(pressure_data):
@@ -127,7 +128,6 @@ def main():
                         process_pressure_data(packet, pressure_data)
                         del buffer[:62]
                     else:
-                        # Corrupted or misaligned, search for next 0xFF
                         del buffer[0]
                 else:
                     try:
@@ -140,6 +140,13 @@ def main():
             now = time.time()
             if now - last_post >= POST_INTERVAL:
                 cop = calculate_cop(pressure_data)
+
+                # Generate compact 20-integer bitmask representation of the matrix
+                matrix_bitmask = [
+                    int(sum((1 << c) for c in range(20) if pressure_data[r, c] > 0))
+                    for r in range(20)
+                ]
+                active_count = int(np.count_nonzero(pressure_data))
 
                 if cop:
                     cop_x, cop_y, total_pressure = cop
@@ -155,16 +162,23 @@ def main():
                         'left_pct': left_pct,
                         'right_pct': right_pct,
                         'total_pressure': float(total_pressure),
+                        'peak_pressure': 100.0,
+                        'active_count': active_count,
+                        'matrix': matrix_bitmask,
                         'port': port,
                         'touching': True,
                     }
                 else:
-                    # Heartbeat so web UI knows mat is connected and live
                     payload = {
                         'x': None,
                         'y': None,
+                        'left_pct': 50.0,
+                        'right_pct': 50.0,
                         'port': port,
                         'total_pressure': 0.0,
+                        'peak_pressure': 0.0,
+                        'active_count': 0,
+                        'matrix': [0] * 20,
                         'touching': False,
                     }
 
