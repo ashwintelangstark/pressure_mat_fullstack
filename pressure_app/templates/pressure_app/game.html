@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Collect the Stars - {{ patient.name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(160deg, #1b1440 0%, #3a2d7d 45%, #6a4fc7 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 20px 60px;
+            text-align: center;
+        }
+        a.back-link {
+            color: #d9d0ff;
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        h1 {
+            margin: 0 0 4px;
+            font-size: 32px;
+        }
+        .subtitle {
+            color: #d9d0ff;
+            margin-bottom: 16px;
+        }
+        .hud {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .hud-card {
+            background: rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 10px 18px;
+            min-width: 110px;
+        }
+        .hud-card .label { font-size: 12px; color: #d9d0ff; }
+        .hud-card .value { font-size: 22px; font-weight: 700; }
+        #connection-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            margin-bottom: 14px;
+        }
+        .connected { background: #2ecc71; color: #04321a; }
+        .disconnected { background: #e74c3c; color: #3a0a05; }
+        #stage-wrap {
+            position: relative;
+            display: inline-block;
+            border-radius: 20px;
+            padding: 14px;
+            background: rgba(255,255,255,0.08);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        }
+        canvas {
+            border-radius: 14px;
+            background: #241a5e;
+            touch-action: none;
+        }
+        .controls {
+            margin-top: 18px;
+        }
+        select, button {
+            font-size: 16px;
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: none;
+            margin: 6px;
+            cursor: pointer;
+        }
+        button.primary {
+            background: #ffcf3f;
+            color: #402a00;
+            font-weight: 700;
+        }
+        button.primary:hover { background: #ffd863; }
+        button.secondary {
+            background: rgba(255,255,255,0.18);
+            color: #fff;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #overlay {
+            position: absolute;
+            inset: 14px;
+            border-radius: 14px;
+            background: rgba(20, 12, 50, 0.88);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+        #overlay h2 { margin: 0 0 8px; font-size: 26px; }
+        #overlay p { margin: 4px 0; color: #e5deff; }
+        .hint {
+            font-size: 13px;
+            color: #cfc4ff;
+            margin-top: 10px;
+            max-width: 480px;
+        }
+        .no-hardware-note {
+            margin-top: 14px;
+            font-size: 13px;
+            color: #cfc4ff;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a class="back-link" href="/patient/{{ patient.patient_id }}/readings/"><i class="fa fa-arrow-left"></i> Back to {{ patient.name }}'s record</a>
+    <h1>&#11088; Collect the Stars</h1>
+    <div class="subtitle">Walk on the mat to guide the glowing dot to every star, {{ patient.name }}!</div>
+
+    <div style="margin: 12px auto 16px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: rgba(255,255,255,0.14); padding: 8px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.25); flex-wrap: wrap; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <label for="game-port-select" style="font-size: 14px; color: #ffcf3f; font-weight: 700; margin: 0;">🔌 Pressure Mat Port:</label>
+        <select id="game-port-select" style="padding: 7px 12px; border-radius: 8px; font-size: 14px; background: #ffffff; color: #1b1440; border: none; font-weight: 600; margin: 0; cursor: pointer;">
+            <option value="auto">⚡ Auto-detect Port</option>
+            {% for p in ports %}
+            <option value="{{ p.device }}" {% if selected_port == p.device %}selected{% endif %}>{{ p.description }}</option>
+            {% endfor %}
+        </select>
+        <button id="game-refresh-ports-btn" type="button" style="padding: 7px 12px; font-size: 14px; border-radius: 8px; background: rgba(255,255,255,0.25); color: white; margin: 0; cursor: pointer; border: none; font-weight: bold;" title="Refresh Available Ports">🔄 Refresh</button>
+    </div><br>
+
+    <div id="connection-badge" class="disconnected">Connecting to mat...</div>
+
+    <div class="hud">
+        <div class="hud-card"><div class="label">Score</div><div class="value" id="hud-score">0</div></div>
+        <div class="hud-card"><div class="label">Stars</div><div class="value" id="hud-stars">0 / 0</div></div>
+        <div class="hud-card"><div class="label">Time</div><div class="value" id="hud-time">0.0s</div></div>
+    </div>
+
+    <div id="stage-wrap">
+        <canvas id="game-canvas" width="600" height="600"></canvas>
+        <div id="overlay">
+            <h2 id="overlay-title">Ready to play?</h2>
+            <p id="overlay-body">Pick a difficulty and press Start. Stand on the mat and move around to collect all the stars.</p>
+            <div class="controls">
+                <select id="difficulty">
+                    <option value="easy">Easy (5 stars)</option>
+                    <option value="medium">Medium (8 stars)</option>
+                    <option value="hard">Hard (12 stars)</option>
+                </select><br>
+                <button class="primary" id="start-btn">Start Game</button>
+            </div>
+            <div class="no-hardware-note">
+                No mat connected? You can still test with arrow keys or by dragging the dot with your mouse.
+            </div>
+        </div>
+    </div>
+
+    <div class="hint">
+        Tip: run <code>python pressure_app/game_bridge.py {{ patient.patient_id }}</code> on the machine connected to the mat so live foot position streams in here.
+    </div>
+</div>
+
+<script>
+const patientId = "{{ patient.patient_id }}";
+const FRAME_URL = `/api/game/${patientId}/frame/`;
+const SAVE_URL = `/api/game/${patientId}/save/`;
+
+const GRID_SIZE = 20;
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const cell = canvas.width / GRID_SIZE;
+
+const difficultyConfig = {
+    easy:   { stars: 5,  radius: 1.6, timeLimit: 90 },
+    medium: { stars: 8,  radius: 1.3, timeLimit: 90 },
+    hard:   { stars: 12, radius: 1.0, timeLimit: 120 },
+};
+
+let state = 'idle'; // idle | playing | finished
+let difficulty = 'easy';
+let stars = [];       // {x, y, collected}
+let playerPos = { x: 10, y: 10 };
+let displayPos = { x: 10, y: 10 }; // smoothed for rendering
+let pathData = [];
+let starEvents = [];
+let score = 0;
+let startTime = 0;
+let lastStarTime = 0;
+let connected = false;
+let pollTimer = null;
+let animFrame = null;
+let manualControl = { up: false, down: false, left: false, right: false };
+let dragging = false;
+
+function gridToPx(v) { return v * cell + cell / 2; }
+
+function randStarPositions(n) {
+    const pts = [];
+    let attempts = 0;
+    while (pts.length < n && attempts < 500) {
+        attempts++;
+        const x = 1.5 + Math.random() * (GRID_SIZE - 3);
+        const y = 1.5 + Math.random() * (GRID_SIZE - 3);
+        const tooClose = pts.some(p => Math.hypot(p.x - x, p.y - y) < 3);
+        if (!tooClose) pts.push({ x, y, collected: false });
+    }
+    return pts;
+}
+
+function setOverlay(visible, title, body) {
+    const overlay = document.getElementById('overlay');
+    overlay.style.display = visible ? 'flex' : 'none';
+    if (title) document.getElementById('overlay-title').textContent = title;
+    if (body) document.getElementById('overlay-body').textContent = body;
+}
+
+function startGame() {
+    difficulty = document.getElementById('difficulty').value;
+    const cfg = difficultyConfig[difficulty];
+    stars = randStarPositions(cfg.stars);
+    score = 0;
+    pathData = [];
+    starEvents = [];
+    playerPos = { x: 10, y: 10 };
+    displayPos = { x: 10, y: 10 };
+    startTime = performance.now();
+    lastStarTime = startTime;
+    state = 'playing';
+    setOverlay(false);
+    updateHud();
+}
+
+function updateHud() {
+    document.getElementById('hud-score').textContent = score;
+    const cfg = difficultyConfig[difficulty];
+    const collected = stars.filter(s => s.collected).length;
+    document.getElementById('hud-stars').textContent = `${collected} / ${stars.length}`;
+    const elapsed = state === 'playing' ? (performance.now() - startTime) / 1000 : 0;
+    document.getElementById('hud-time').textContent = `${elapsed.toFixed(1)}s`;
+}
+
+function finishGame(reason) {
+    state = 'finished';
+    const duration = (performance.now() - startTime) / 1000;
+    const collected = stars.filter(s => s.collected).length;
+
+    const summary = {
+        duration_seconds: duration,
+        difficulty: difficulty,
+        target_count: stars.length,
+        stars_collected: collected,
+        score: score,
+        path_data: pathData,
+        star_events: starEvents,
+    };
+
+    fetch(SAVE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(summary),
+    }).catch(() => {});
+
+    const title = collected === stars.length ? "All stars collected! Great job!" : "Time's up!";
+    setOverlay(true, title, `You collected ${collected} of ${stars.length} stars in ${duration.toFixed(1)}s. Score: ${score}`);
+    document.getElementById('start-btn').textContent = 'Play Again';
+}
+
+function checkCollisions() {
+    const cfg = difficultyConfig[difficulty];
+    stars.forEach((s, i) => {
+        if (s.collected) return;
+        const d = Math.hypot(s.x - playerPos.x, s.y - playerPos.y);
+        if (d <= cfg.radius) {
+            s.collected = true;
+            score += 100;
+            const now = performance.now();
+            starEvents.push({
+                index: i,
+                x: s.x,
+                y: s.y,
+                t: (now - startTime) / 1000,
+                time_to_reach: (now - lastStarTime) / 1000,
+            });
+            lastStarTime = now;
+        }
+    });
+    if (stars.length > 0 && stars.every(s => s.collected)) {
+        finishGame('complete');
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    for (let i = 0; i <= GRID_SIZE; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * cell, 0); ctx.lineTo(i * cell, canvas.height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * cell); ctx.lineTo(canvas.width, i * cell);
+        ctx.stroke();
+    }
+
+    // stars
+    stars.forEach(s => {
+        ctx.save();
+        ctx.translate(gridToPx(s.x), gridToPx(s.y));
+        ctx.font = `${cell * 1.4}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = s.collected ? 0.15 : 1.0;
+        ctx.fillText('⭐', 0, 0);
+        ctx.restore();
+    });
+
+    // player (foot glow)
+    const px = gridToPx(displayPos.x);
+    const py = gridToPx(displayPos.y);
+    const grad = ctx.createRadialGradient(px, py, 2, px, py, cell * 1.4);
+    grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+    grad.addColorStop(0.4, 'rgba(120,220,255,0.85)');
+    grad.addColorStop(1, 'rgba(120,220,255,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(px, py, cell * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(px, py, 8, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function loop() {
+    // smooth toward target position
+    displayPos.x += (playerPos.x - displayPos.x) * 0.25;
+    displayPos.y += (playerPos.y - displayPos.y) * 0.25;
+
+    if (state === 'playing') {
+        // manual fallback controls (arrow keys) when mat isn't connected
+        if (!connected) {
+            const speed = 0.18;
+            if (manualControl.up) playerPos.y -= speed;
+            if (manualControl.down) playerPos.y += speed;
+            if (manualControl.left) playerPos.x -= speed;
+            if (manualControl.right) playerPos.x += speed;
+            playerPos.x = Math.max(0, Math.min(GRID_SIZE - 1, playerPos.x));
+            playerPos.y = Math.max(0, Math.min(GRID_SIZE - 1, playerPos.y));
+        }
+
+        pathData.push({ x: playerPos.x, y: playerPos.y, t: (performance.now() - startTime) / 1000 });
+        checkCollisions();
+        updateHud();
+
+        const cfg = difficultyConfig[difficulty];
+        const elapsed = (performance.now() - startTime) / 1000;
+        if (elapsed >= cfg.timeLimit) {
+            finishGame('timeout');
+        }
+    }
+
+    draw();
+    animFrame = requestAnimationFrame(loop);
+}
+
+async function pollFrame() {
+    try {
+        const resp = await fetch(FRAME_URL, { cache: 'no-store' });
+        const data = await resp.json();
+        if (data.connected) {
+            connected = true;
+            const portName = data.port ? ` (${data.port})` : '';
+            document.getElementById('connection-badge').textContent = `Mat connected${portName}`;
+            document.getElementById('connection-badge').className = 'connected';
+            if (typeof data.x === 'number' && typeof data.y === 'number') {
+                playerPos.x = data.x;
+                playerPos.y = data.y;
+            }
+        } else {
+            connected = false;
+            document.getElementById('connection-badge').textContent = 'Mat not connected (use arrow keys)';
+            document.getElementById('connection-badge').className = 'disconnected';
+        }
+    } catch (e) {
+        connected = false;
+        document.getElementById('connection-badge').textContent = 'Mat not connected (use arrow keys)';
+        document.getElementById('connection-badge').className = 'disconnected';
+    }
+}
+
+// keyboard fallback
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp') manualControl.up = true;
+    if (e.key === 'ArrowDown') manualControl.down = true;
+    if (e.key === 'ArrowLeft') manualControl.left = true;
+    if (e.key === 'ArrowRight') manualControl.right = true;
+});
+window.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowUp') manualControl.up = false;
+    if (e.key === 'ArrowDown') manualControl.down = false;
+    if (e.key === 'ArrowLeft') manualControl.left = false;
+    if (e.key === 'ArrowRight') manualControl.right = false;
+});
+
+// mouse/touch fallback (only used while not connected to real hardware)
+function posFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+        x: Math.max(0, Math.min(GRID_SIZE - 1, (clientX - rect.left) / cell)),
+        y: Math.max(0, Math.min(GRID_SIZE - 1, (clientY - rect.top) / cell)),
+    };
+}
+canvas.addEventListener('mousedown', (e) => { dragging = true; if (!connected) playerPos = posFromEvent(e); });
+window.addEventListener('mouseup', () => dragging = false);
+canvas.addEventListener('mousemove', (e) => { if (dragging && !connected) playerPos = posFromEvent(e); });
+canvas.addEventListener('touchstart', (e) => { if (!connected) playerPos = posFromEvent(e); });
+canvas.addEventListener('touchmove', (e) => { if (!connected) playerPos = posFromEvent(e); });
+
+// Mat Bridge & COM Port Management inside Game Page
+const gamePortSelect = document.getElementById('game-port-select');
+const gameRefreshBtn = document.getElementById('game-refresh-ports-btn');
+
+async function startMatBridge(port) {
+    try {
+        await fetch(`/api/game/${patientId}/start_bridge/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ port: port || 'auto' })
+        });
+    } catch (e) {
+        console.error('Bridge start error:', e);
+    }
+}
+
+async function loadGamePorts() {
+    if (!gamePortSelect) return;
+    const currentVal = gamePortSelect.value;
+    try {
+        const res = await fetch('/api/ports/');
+        const data = await res.json();
+        if (data.success && data.ports) {
+            gamePortSelect.innerHTML = '<option value="auto">⚡ Auto-detect Port</option>';
+            data.ports.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.device;
+                opt.textContent = `🔌 ${p.description}`;
+                if (p.device === currentVal) opt.selected = true;
+                gamePortSelect.appendChild(opt);
+            });
+        }
+    } catch (e) {}
+}
+
+if (gameRefreshBtn) {
+    gameRefreshBtn.addEventListener('click', loadGamePorts);
+}
+
+if (gamePortSelect) {
+    gamePortSelect.addEventListener('change', () => {
+        startMatBridge(gamePortSelect.value);
+    });
+}
+
+document.getElementById('start-btn').addEventListener('click', () => {
+    const selectedPort = gamePortSelect ? gamePortSelect.value : 'auto';
+    startMatBridge(selectedPort);
+    startGame();
+});
+
+// Auto start bridge on page load if port selected
+const initialPort = gamePortSelect ? gamePortSelect.value : 'auto';
+startMatBridge(initialPort);
+
+pollFrame();
+pollTimer = setInterval(pollFrame, 150);
+loop();
+</script>
+</body>
+</html>

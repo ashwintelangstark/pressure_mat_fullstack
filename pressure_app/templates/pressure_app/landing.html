@@ -1,0 +1,811 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Pressure Visualization System </title>
+  <meta name="description" content="AI-powered heart disease prediction and monitoring platform">
+  <meta name="keywords" content="heart disease, cardiovascular, AI prediction, health">
+
+  <!-- Favicons -->
+  <!-- <link href="static/img/favicon.png" rel="icon">  -->
+  <link href="static/img/apple-touch-icon.png" rel="apple-touch-icon">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+    rel="stylesheet">
+
+  <!-- Vendor CSS Files -->
+  <link href="static/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="static/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="static/vendor/aos/aos.css" rel="stylesheet">
+  <link href="static/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+  <link href="static/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+  <link href="static/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+
+  <!-- Main CSS File -->
+  <link href="static/css/main.css" rel="stylesheet">
+
+  <!-- =======================================================
+  * Template Name: Medilab
+  * Template URL: https://bootstrapmade.com/medilab-free-medical-bootstrap-theme/
+  * Updated: Aug 07 2024 with Bootstrap v5.3.3
+  * Author: BootstrapMade.com
+  * License: https://bootstrapmade.com/license/
+  ======================================================== -->
+</head>
+
+<body class="index-page">
+
+  <header id="header" class="header sticky-top">
+
+    <div class="topbar d-flex align-items-center">
+      <div class="container d-flex justify-content-center justify-content-md-between">
+        <div class="contact-info d-flex align-items-center">
+          <i class="bi bi-envelope d-flex align-items-center"><a
+              href="mailto:contact@example.com">contact@example.com</a></i>
+          <i class="bi bi-phone d-flex align-items-center ms-4"><span>+91 9590499570</span></i>
+        </div>
+        <div class="social-links d-none d-md-flex align-items-center">
+          <a href="https://www.facebook.com/haegltechnologies/" class="facebook"><i class="bi bi-facebook"></i></a>
+          <a href="https://www.instagram.com/haegltechnologies/" class="instagram"><i class="bi bi-instagram"></i></a>
+          <a href="https://www.linkedin.com/company/haegl-technologies-pvt-ltd/mycompany/" class="linkedin"><i class="bi bi-linkedin"></i></a>
+        </div>
+      </div>
+    </div><!-- End Top Bar -->
+
+    <div class="branding d-flex align-items-center">
+
+      <div class="container position-relative d-flex align-items-center justify-content-between">
+        <a href="#" class="logo d-flex align-items-center me-auto">
+          <h1 class="sitename">Haegl_Health Care</h1>
+        </a>
+
+        <nav id="navmenu" class="navmenu">
+          <ul>
+            <li><a href="#" class="active">Home<br></a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#services">Services</a></li>
+            {% if user.is_authenticated %}
+            <li><a href="/logout">Logout</a></li>
+            {%else %}
+            <li><a href="/login">Login</a></li>
+            {% endif %}
+          </ul>
+          <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
+        </nav>
+
+      </div>
+
+    </div>
+
+  </header>
+
+  <main class="main">
+
+    <!-- Hero Carousel -->
+<section id="hero-carousel" class="hero section light-background">
+
+  <div class="hero-slide">
+    <video class="hero-video" autoplay muted loop playsinline>
+        <source src="{% static 'video/12382109_1920_1080_25fps.mp4' %}" type="video/mp4">
+    </video>
+
+    <div class="container position-relative">
+      <div class="welcome" data-aos="fade-down">
+        <h3 style="color:white;">WELCOME TO</h3>
+        <h2 style="color:white;">Haegl Technologies</h2>
+        <p>"Empowering Tomorrow’s Innovators Through Robotics, AI &amp; ML"</p>
+      </div>
+      <div class="content row gy-4">
+        <div class="col-lg-4 d-flex align-items-stretch">
+          <div class="why-box" data-aos="zoom-out">
+            <h3>Why Choose Haegl Technologies?</h3>
+            <p>
+              HAEGL is dedicated to revolutionizing  healthcare, agriculture and education by integrating AI-driven insights and sustainable practices.
+              <br> Our mission is to bridge the gap between innovation and accessibility, offering solutions that are scalable, secure, and human-centric in every field we touch.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-8 d-flex align-items-stretch">
+          <div class="row gy-4">
+            <div class="col-xl-4">
+              <div class="icon-box">
+                <i class="bi bi-clipboard-data"></i>
+                <h4>Healthcare</h4>
+                <p>HAEGL Technologies offers physiotherapy-focused solutions. The systems combine real-time feedback and intelligent monitoring.</p>
+              </div>
+            </div>
+            <div class="col-xl-4">
+              <div class="icon-box">
+                <i class="bi bi-gem"></i>
+                <h4>Agriculture</h4>
+                <p>HAEGL Technologies empowers the Agriculture sector with smart innovations.</p>
+              </div>
+            </div>
+            <div class="col-xl-4">
+              <div class="icon-box">
+                <i class="bi bi-inboxes"></i>
+                <h4>Education</h4>
+                <p>We foster creativity and critical thinking to build the innovators of tomorrow.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Second Slide -->
+  <div class="hero-slide">
+    <!-- <img src="static/img/hero-bg.jpg" alt="" data-aos="fade-in"> -->
+    <video class="hero-video" autoplay muted loop playsinline>
+        <source src="{% static 'video/7521704-hd_1920_1080_25fps - Copy.mp4' %}" type="video/mp4">
+    </video>
+
+    <div class="container position-relative">
+      <div class="welcome" data-aos="fade-down" data-aos-delay="100">
+        <h3>WELCOME TO</h3>
+        <h2>Foot Pressure Visualization System</h2>
+        <p>"Experience real-time insights with our advanced Pressure Visualization System."</p>
+      </div>
+      <div class="content row gy-4">
+        <div class="col-lg-4 d-flex align-items-stretch">
+          <div class="why-box" data-aos="zoom-out" data-aos-delay="200">
+            <h3>Why Choose Our Pressure Mapping System ?</h3>
+            <p>
+              Our pressure visualization system offers a reliable and detailed assessment of foot pressure
+              distribution using real-time sensor data. By monitoring and analyzing pressure patterns over time,
+              the system assists in early detection of abnormalities and supports personalized patient care
+              for improved foot health.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-8 d-flex align-items-stretch">
+          <div class="row gy-4">
+            <div class="col-xl-4">
+              <div class="icon-box" data-aos="zoom-out" data-aos-delay="300">
+                <i class="bi bi-clipboard-data"></i>
+                <h4>Risk Factor Analysis</h4>
+                <p>Comprehensive analysis of foot pressure patterns using real-time sensor data.</p>
+              </div>
+            </div>
+            <div class="col-xl-4">
+              <div class="icon-box" data-aos="zoom-out" data-aos-delay="400">
+                <i class="bi bi-gem"></i>
+                <h4>Early Detection</h4>
+                <p>Real-time sensor data reveals subtle pressure changes indicating early foot issues.</p>
+              </div>
+            </div>
+            <div class="col-xl-4">
+              <div class="icon-box" data-aos="zoom-out" data-aos-delay="500">
+                <i class="bi bi-inboxes"></i>
+                <h4>Personalized Care Plans</h4>
+                <p>Receive personalized insights and track progress based on individual pressure patterns.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Arrows -->
+<button id="prev-slide" class="hero-nav-btn">&#10094;</button>
+<button id="next-slide" class="hero-nav-btn">&#10095;</button>
+
+</section>
+
+<style>
+  .hero-nav-btn{
+      position:absolute;
+      top:50%;
+      transform:translateY(-50%);
+      font-size:32px;
+      background:rgba(0,0,0,0.4);
+      color:#fff;
+      border:none;
+      padding:8px 12px;
+      cursor:pointer;
+      z-index:10;
+  }
+  #prev-slide{ left:10px; }
+  #next-slide{ right:10px; }
+
+  #hero-carousel {
+      position: relative;
+      height: 100vh; /* Full screen */
+      overflow: hidden;
+  }
+
+  .hero-slide {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+  }
+
+  .hero-slide video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+  }
+
+  .hero-slide .container {
+      position: relative;
+      z-index: 2;
+      color: white;
+  }
+
+  .hero-slide::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5); /* dark overlay */
+      z-index: 1;
+  }
+
+  .welcome {
+      padding-top: 150px;
+  }
+
+  .hero-slide {
+      position: relative;
+      height: 100vh;
+      overflow: hidden;
+  }
+
+  .hero-video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+  }
+
+  .hero-slide .container {
+      position: relative;
+      z-index: 2;
+  }
+  .service-item {
+      min-height: 380px;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      position: relative;
+      overflow: hidden;
+  }
+
+  .service-item::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+  }
+
+  .service-item .icon,
+  .service-item h3,
+  .service-item p,
+  .service-item a {
+      position: relative;
+      z-index: 2;
+      color: white !important;
+  }
+
+  .service-bg1 {
+      background-image: url("/static/img/foot_pressure.jpg");
+  }
+
+  .service-bg2 {
+      background-image: url("/static/img/foot_progress.jpg");
+  }
+
+  .service-bg3 {
+      background-image: url("/static/img/foot_friendly.jpg");
+  }
+
+  .service-bg4 {
+      background-image: url("/static/img/foot_exercise.jpg");
+  }
+
+  .service-bg5 {
+      background-image: url("/static/img/foot_monitoring.jpg");
+  }
+
+  .service-bg6 {
+      background-image: url("/static/img/foot_report.jpg");
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const slides = document.querySelectorAll('#hero-carousel .hero-slide');
+    const prevBtn = document.getElementById('prev-slide');
+    const nextBtn = document.getElementById('next-slide');
+    let index = 0;
+
+    // show only the first slide initially
+    slides.forEach((s, i) => s.style.display = (i === 0 ? 'block' : 'none'));
+
+    function showSlide(i){
+      slides.forEach(s => s.style.display = 'none');
+      slides[i].style.display = 'block';
+    }
+
+    function nextSlide(){
+      index = (index + 1) % slides.length;
+      showSlide(index);
+    }
+
+    function prevSlide(){
+      index = (index - 1 + slides.length) % slides.length;
+      showSlide(index);
+    }
+
+    // auto slide
+    let auto = setInterval(nextSlide, 6000);
+
+    // arrow controls
+    prevBtn.addEventListener('click', () => {
+      prevSlide();
+      clearInterval(auto);
+    });
+
+    nextBtn.addEventListener('click', () => {
+      nextSlide();
+      clearInterval(auto);
+    });
+  });
+</script>
+    <!-- Hero Section -->
+
+    <!-- About Section -->
+    <section id="about" class="about section">
+
+      <div class="container">
+
+        <div class="row gy-4 gx-5">
+
+          <div class="col-lg-6 position-relative align-self-start" data-aos="fade-up" data-aos-delay="200">
+            <img src="static/img/about.jpg" class="img-fluid" alt="Heart health monitoring">
+            <a href="https://youtu.be/FEnIosVHuHs?si=piv5Rf_cJTAgQEpS" class="glightbox pulsating-play-btn"></a>
+          </div>
+          <div class="col-lg-6 content" data-aos="fade-up" data-aos-delay="100">
+            <h3>About Pressure Visualization System</h3>
+            <p>
+                Foot-related complications can significantly impact mobility and quality of life. Our pressure visualization system uses real-time sensor data to monitor pressure distribution, enabling early detection of abnormalities and supporting proactive foot health management.
+            </p>
+            <ul>
+              <li>
+                <i class="fa-solid fa-heartbeat"></i>
+                <div>
+                  <h5>Accurate Risk Assessment</h5>
+                  <p>Our system captures and analyzes multiple pressure-related factors such as intensity, distribution, and duration to assess potential foot health issues.</p>
+                </div>
+              </li>
+              <li>
+                <i class="fa-solid fa-stethoscope"></i>
+                <div>
+                  <h5>Real-time Monitoring</h5>
+                  <p>Track important foot pressure metrics over time and receive alerts when values indicate increased stress or imbalance.</p>
+                </div>
+              </li>
+              <li>
+                <i class="fa-solid fa-heart-pulse"></i>
+                <div>
+                  <h5>Preventive Recommendations</h5>
+                  <p>Get tailored foot care feedback and monitor improvements through real-time pressure pattern analysis.</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- About Section -->
+
+    <!-- Services Section -->
+    <section id="services" class="services section">
+
+      <!-- Section Title -->
+      <div class="container section-title" data-aos="fade-up">
+        <h2>Foot Pressure Monitoring Services</h2>
+        <p>Comprehensive foot pressure monitoring, detection, and management services powered by real-time sensor technology.</p>
+      </div>
+      <!-- End Section Title -->
+
+      <div class="container">
+
+        <div class="row gy-4">
+
+          <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="100">
+            <div class="service-item position-relative service-bg1">
+              <div class="icon">
+                <i class="fas fa-heartbeat"></i>
+              </div>
+              <a href="#" class="stretched-link">
+                <h3>Foot Pressure Assessment</h3>
+              </a>
+              <p>Sensor-based analysis of foot pressure patterns based on factors like distribution, intensity, and duration to assess potential foot health concerns.</p>
+            </div>
+          </div>
+          <!-- End Service Item -->
+
+          <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="200">
+            <div class="service-item position-relative service-bg2">
+              <div class="icon">
+                <i class="fas fa-pills"></i>
+              </div>
+              <a href="#" class="stretched-link">
+                <h3>Foot Health Progress Tracking</h3>
+              </a>
+              <p>Track your foot health progress with regular assessments and personalized insights to support effective care and recovery.</p>
+            </div>
+          </div>
+          <!-- End Service Item -->
+
+          <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="300">
+            <div class="service-item position-relative service-bg3">
+              <div class="icon">
+                <i class="fas fa-hospital-user"></i>
+              </div>
+              <a href="#" class="stretched-link">
+                <h3>Foot-Friendly Activity Plans</h3>
+              </a>
+              <p>Personalized activity recommendations that promote foot health and reduce the risk of pressure-related issues.</p>
+            </div>
+          </div>
+          <!-- End Service Item -->
+
+          <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="400">
+            <div class="service-item position-relative service-bg4">
+              <div class="icon">
+                <i class="fas fa-dna"></i>
+              </div>
+              <a href="#" class="stretched-link">
+                <h3>Foot Strengthening Exercise Programs</h3>
+              </a>
+              <p>Customized exercise recommendations designed to strengthen your feet and improve balance and mobility.</p>
+            </div>
+          </div>
+          <!-- End Service Item -->
+
+          <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="500">
+            <div class="service-item position-relative service-bg5">
+              <div class="icon">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <a href="#" class="stretched-link">
+                <h3>Foot Pressure Monitoring</h3>
+              </a>
+              <p>Track key foot pressure metrics over time to visualize progress and detect early signs of imbalance or stress.</p>
+            </div>
+          </div>
+          <!-- End Service Item -->
+
+          <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="600">
+            <div class="service-item position-relative service-bg6">
+              <div class="icon">
+                <i class="fas fa-notes-medical"></i>
+              </div>
+              <a href="#" class="stretched-link">
+                <h3>Foot Pressure Health Reports</h3>
+              </a>
+              <p>Detailed foot pressure assessments that can be shared with your healthcare provider for integrated care and treatment planning.</p>
+            </div>
+          </div>
+          <!-- End Service Item -->
+
+        </div>
+      </div>
+    </section>
+    <!-- Services Section -->
+
+    <!-- Heart Care Sections -->
+    <div class="container" data-aos="fade-up" data-aos-delay="100">
+      <div class="row"> 
+        <div class="col-lg-3">
+          <ul class="nav nav-tabs flex-column">
+            <li class="nav-item">
+              <a class="nav-link active show" data-bs-toggle="tab" href="#departments-tab-1">Risk Assessment</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-bs-toggle="tab" href="#departments-tab-2">Preventive Care</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-bs-toggle="tab" href="#departments-tab-4">Lifestyle Management</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-bs-toggle="tab" href="#departments-tab-5">Monitoring Tools</a>
+            </li>
+          </ul>
+        </div>
+        <div class="col-lg-9 mt-4 mt-lg-0">
+          <div class="tab-content">
+            <div class="tab-pane active show" id="departments-tab-1">
+              <div class="row">
+                <div class="col-lg-8 details order-2 order-lg-1">
+                  <h3>Foot Pressure Assessment</h3>
+                  <p class="fst-italic">Comprehensive analysis of your foot pressure data using real-time sensor input.</p>
+                  <p>Our system evaluates key indicators such as pressure intensity, distribution, and balance patterns to provide an accurate assessment of foot health and potential risk of related issues.</p>
+                </div>
+                <div class="col-lg-4 text-center order-1 order-lg-2">
+                  <img src="static/img/one.png" alt="" class="img-fluid">
+                </div>
+              </div>
+            </div>
+            <div class="tab-pane" id="departments-tab-2">
+              <div class="row">
+                <div class="col-lg-8 details order-2 order-lg-1">
+                  <h3>Foot Problem Prevention</h3>
+                  <p class="fst-italic">Proactive strategies to reduce the risk of foot-related complications.</p>
+                  <p>Based on your individual pressure data, we offer targeted recommendations for posture improvement, activity adjustments, footwear choices, and regular monitoring to support long-term foot health.</p>
+                </div>
+                <div class="col-lg-4 text-center order-1 order-lg-2">
+                  <img src="static/img/two.png" alt="" class="img-fluid">
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane" id="departments-tab-4">
+              <div class="row">
+                <div class="col-lg-8 details order-2 order-lg-1">
+                  <h3>Foot Health Lifestyle Management</h3>
+                  <p class="fst-italic">Personalized lifestyle recommendations for better foot health.</p>
+                  <p>Get customized guidance on physical activity, posture, footwear, and daily habits that influence foot pressure and overall foot well-being, tailored to your unique pressure data and needs.</p>
+                </div>
+                <div class="col-lg-4 text-center order-1 order-lg-2">
+                  <img src="static/img/three.png" alt="" class="img-fluid">
+                </div>
+              </div>
+            </div>
+            <div class="tab-pane" id="departments-tab-5">
+              <div class="row">
+                <div class="col-lg-8 details order-2 order-lg-1">
+                  <h3>Foot Health Monitoring</h3>
+                  <p class="fst-italic">Continuous tracking of foot pressure metrics for early intervention.</p>
+                  <p>Our system enables ongoing monitoring of key pressure indicators, helping you visualize trends, detect early signs of imbalance, and evaluate the impact of lifestyle changes on foot health.</p>
+                </div>
+                <div class="col-lg-4 text-center order-1 order-lg-2">
+                  <img src="static/img/four.png" alt="" class="img-fluid">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer id="footer" class="footer light-background">
+
+
+
+    <div class="container copyright text-center mt-4">
+      <p>© <span>Copyright</span> <strong class="px-1 sitename">SDM HUBLI</strong> <span>All Rights Reserved</span></p>
+
+    </div>
+
+  </footer>
+
+  <!-- Scroll Top -->
+  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i
+      class="bi bi-arrow-up-short"></i></a>
+
+  <!-- Preloader -->
+  <div id="preloader"></div>
+
+  <!-- Vendor JS Files -->
+  <script src="static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="static/vendor/php-email-form/validate.js"></script>
+  <script src="static/vendor/aos/aos.js"></script>
+  <script src="static/vendor/glightbox/js/glightbox.min.js"></script>
+  <script src="static/vendor/purecounter/purecounter_vanilla.js"></script>
+  <script src="static/vendor/swiper/swiper-bundle.min.js"></script>
+
+  <!-- Main JS File -->
+  <script src="static/js/main.js"></script>
+
+</body>
+<script>
+/**
+* Template Name: Medilab
+* Template URL: https://bootstrapmade.com/medilab-free-medical-bootstrap-theme/
+* Updated: Aug 07 2024 with Bootstrap v5.3.3
+* Author: BootstrapMade.com
+* License: https://bootstrapmade.com/license/
+*/
+
+(function() {
+  "use strict";
+
+  /**
+   * Apply .scrolled class to the body as the page is scrolled down
+   */
+  function toggleScrolled() {
+    const selectBody = document.querySelector('body');
+    const selectHeader = document.querySelector('#header');
+    if (!selectHeader.classList.contains('scroll-up-sticky') && !selectHeader.classList.contains('sticky-top') && !selectHeader.classList.contains('fixed-top')) return;
+    window.scrollY > 100 ? selectBody.classList.add('scrolled') : selectBody.classList.remove('scrolled');
+  }
+
+  document.addEventListener('scroll', toggleScrolled);
+  window.addEventListener('load', toggleScrolled);
+
+  /**
+   * Mobile nav toggle
+   */
+  const mobileNavToggleBtn = document.querySelector('.mobile-nav-toggle');
+
+  function mobileNavToogle() {
+    document.querySelector('body').classList.toggle('mobile-nav-active');
+    mobileNavToggleBtn.classList.toggle('bi-list');
+    mobileNavToggleBtn.classList.toggle('bi-x');
+  }
+  mobileNavToggleBtn.addEventListener('click', mobileNavToogle);
+
+  /**
+   * Hide mobile nav on same-page/hash links
+   */
+  document.querySelectorAll('#navmenu a').forEach(navmenu => {
+    navmenu.addEventListener('click', () => {
+      if (document.querySelector('.mobile-nav-active')) {
+        mobileNavToogle();
+      }
+    });
+
+  });
+
+  /**
+   * Toggle mobile nav dropdowns
+   */
+  document.querySelectorAll('.navmenu .toggle-dropdown').forEach(navmenu => {
+    navmenu.addEventListener('click', function(e) {
+      e.preventDefault();
+      this.parentNode.classList.toggle('active');
+      this.parentNode.nextElementSibling.classList.toggle('dropdown-active');
+      e.stopImmediatePropagation();
+    });
+  });
+
+  /**
+   * Preloader
+   */
+  const preloader = document.querySelector('#preloader');
+  if (preloader) {
+    window.addEventListener('load', () => {
+      preloader.remove();
+    });
+  }
+
+  /**
+   * Scroll top button
+   */
+  let scrollTop = document.querySelector('.scroll-top');
+
+  function toggleScrollTop() {
+    if (scrollTop) {
+      window.scrollY > 100 ? scrollTop.classList.add('active') : scrollTop.classList.remove('active');
+    }
+  }
+  scrollTop.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  });
+
+  window.addEventListener('load', toggleScrollTop);
+  document.addEventListener('scroll', toggleScrollTop);
+
+  /**
+   * Animation on scroll function and init
+   */
+  function aosInit() {
+    AOS.init({
+      duration: 600,
+      easing: 'ease-in-out',
+      once: true,
+      mirror: false
+    });
+  }
+  window.addEventListener('load', aosInit);
+
+  /**
+   * Initiate glightbox
+   */
+  const glightbox = GLightbox({
+    selector: '.glightbox'
+  });
+
+  /**
+   * Initiate Pure Counter
+   */
+  new PureCounter();
+
+  /**
+   * Frequently Asked Questions Toggle
+   */
+  document.querySelectorAll('.faq-item h3, .faq-item .faq-toggle').forEach((faqItem) => {
+    faqItem.addEventListener('click', () => {
+      faqItem.parentNode.classList.toggle('faq-active');
+    });
+  });
+
+  /**
+   * Init swiper sliders
+   */
+  function initSwiper() {
+    document.querySelectorAll(".init-swiper").forEach(function(swiperElement) {
+      let config = JSON.parse(
+        swiperElement.querySelector(".swiper-config").innerHTML.trim()
+      );
+
+      if (swiperElement.classList.contains("swiper-tab")) {
+        initSwiperWithCustomPagination(swiperElement, config);
+      } else {
+        new Swiper(swiperElement, config);
+      }
+    });
+  }
+
+  window.addEventListener("load", initSwiper);
+
+  /**
+   * Correct scrolling position upon page load for URLs containing hash links.
+   */
+  window.addEventListener('load', function(e) {
+    if (window.location.hash) {
+      if (document.querySelector(window.location.hash)) {
+        setTimeout(() => {
+          let section = document.querySelector(window.location.hash);
+          let scrollMarginTop = getComputedStyle(section).scrollMarginTop;
+          window.scrollTo({
+            top: section.offsetTop - parseInt(scrollMarginTop),
+            behavior: 'smooth'
+          });
+        }, 100);
+      }
+    }
+  });
+
+  /**
+   * Navmenu Scrollspy
+   */
+  let navmenulinks = document.querySelectorAll('.navmenu a');
+
+  function navmenuScrollspy() {
+    navmenulinks.forEach(navmenulink => {
+      if (!navmenulink.hash) return;
+      let section = document.querySelector(navmenulink.hash);
+      if (!section) return;
+      let position = window.scrollY + 200;
+      if (position >= section.offsetTop && position <= (section.offsetTop + section.offsetHeight)) {
+        document.querySelectorAll('.navmenu a.active').forEach(link => link.classList.remove('active'));
+        navmenulink.classList.add('active');
+      } else {
+        navmenulink.classList.remove('active');
+      }
+    })
+  }
+  window.addEventListener('load', navmenuScrollspy);
+  document.addEventListener('scroll', navmenuScrollspy);
+
+})();
+</script>
+</html>

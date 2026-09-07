@@ -1,0 +1,511 @@
+{% block content %}
+<div class="container">
+    <h2 class="patient-title">Patient History: {{ patient.name }} ({{ patient.patient_id }})</h2>
+
+    <div class="dashboard-layout">
+
+        <!-- LEFT PANEL -->
+        <div class="left-panel">
+
+            <div class="info-card">
+                <h3>Patient Details</h3>
+
+                <p><strong>Patient ID:</strong> {{ patient.patient_id }}</p>
+                <p><strong>Name:</strong> {{ patient.name }}</p>
+
+                <p><strong>Total Sessions:</strong> {{ videos.count }}</p>
+
+                <div style="margin-top: 15px; margin-bottom: 12px; background: rgba(76, 175, 80, 0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(76, 175, 80, 0.3);">
+                    <label for="mat-port-select" style="font-weight: 600; font-size: 13px; color: #2e7d32; display: block; margin-bottom: 6px;">
+                        🔌 Pressure Mat COM Port:
+                    </label>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <select id="mat-port-select" style="flex: 1; padding: 7px 10px; border-radius: 6px; border: 1px solid #4caf50; font-size: 13px; background: white; color: #2e7d32; font-weight: 500;">
+                            <option value="auto">⚡ Auto-detect Port</option>
+                        </select>
+                        <button id="refresh-ports-btn" type="button" title="Refresh COM Ports" style="padding: 7px 10px; background: #4caf50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: background 0.2s;">
+                            🔄
+                        </button>
+                    </div>
+                    <div id="port-status-msg" style="font-size: 11px; margin-top: 4px; color: #388e3c; display: none;"></div>
+                </div>
+
+                <a id="play-game-btn" href="{% url 'game_page' patient.patient_id %}"
+                   style="display:block; text-align:center; margin-top:10px; padding:10px 16px; background:#6a4fc7; color:#fff; border-radius:8px; text-decoration:none; font-weight:600; transition: background 0.2s;">
+                   ⭐ Play "Collect the Stars"
+                </a>
+            </div>
+
+            <div class="weekly-card">
+                <h3>📋 Weekly Clinical Observation</h3>
+
+                <div>
+                    {{ observation|safe }}
+                </div>
+            </div>
+
+            <div class="weekly-card">
+                <h3>⭐ Game Engagement (Collect the Stars)</h3>
+                {% if game_sessions %}
+                <p><strong>Sessions played:</strong> {{ game_sessions.count }}</p>
+                <ul class="observation-list">
+                    {% for gs in game_sessions|slice:":5" %}
+                    <li>
+                        {{ gs.started_at|date:"M d, Y H:i" }} —
+                        {{ gs.stars_collected }}/{{ gs.target_count }} stars,
+                        score {{ gs.score }}, {{ gs.duration_seconds|floatformat:0 }}s
+                        ({{ gs.difficulty }})
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No game sessions recorded yet — encourage {{ patient.name }} to try "Collect the Stars" for a fun way to keep up with regular mat checkups.</p>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="right-panel">
+
+            <h3 class="history-title">Session History</h3>
+
+            <div class="session-list">
+
+                {% for video in videos %}
+                <div class="session-card">
+
+                    <h4>{{ video.timestamp|date:"M d, Y H:i" }}</h4>
+
+                    <video controls>
+                        <source src="{{ video.video_file.url }}" type="video/mp4">
+                    </video>
+
+                    <div class="session-meta">
+                        {{ video.timestamp|timesince }} ago
+                    </div>
+
+                </div>
+
+                {% empty %}
+                <div class="no-sessions">
+                    No recorded sessions found.
+                </div>
+                {% endfor %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Video Modal
+<div id="videoModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <video id="patientVideo" controls>
+            <source src="" type="video/mp4">
+            Your browser does not support HTML5 video.
+        </video>
+        <div id="videoStatus"></div>
+    </div>
+</div> -->
+
+<a href="{% url 'home' %}" class="back-btn">
+    ⬅️ Back to Patient List
+</a>
+
+<style>
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background-color: #f0f2f5;
+    }
+
+    .container {
+        padding: 40px 80px;
+    }
+
+    .patient-title {
+        text-align: center;
+        font-size: 26px;
+        margin-bottom: 30px;
+        color: #333;
+    }
+
+    .improvement-box{
+        background:#e8f5e9;
+        border-left:5px solid #4caf50;
+        padding:15px;
+        border-radius:8px;
+        margin-bottom:20px;
+        font-size:15px;
+        color:#2e7d32;
+    }
+
+    .session-card {
+        width: 48%;
+        background: #ffffff;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        box-sizing: border-box;
+    }
+
+    @media (max-width:768px){
+        .session-card{
+            width:100%;
+        }
+    }
+
+    @media screen and (max-width: 768px) {
+        .session-card {
+            flex: 0 0 100%;            /* one per row on mobile */
+        }
+    }
+
+    .session-card h3 {
+        margin-bottom: 10px;
+        font-size: 18px;
+        color: #222;
+    }
+
+    .play-btn {
+        background-color: #007BFF;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+    }
+
+    .play-btn:hover {
+        background-color: #0056b3;
+    }
+
+    .session-meta {
+        margin-top: 15px;
+        font-size: 14px;
+        color: #555;
+    }
+
+    .observation-box{
+        margin-top:10px;
+        padding:10px;
+        background:#f0f8ff;
+        border-left:4px solid #2196f3;
+        border-radius:6px;
+        font-size:14px;
+        color:#333;
+    }
+
+    .session-meta .notes {
+        background: #f8f8f8;
+        padding: 10px;
+        border-left: 4px solid #007BFF;
+        border-radius: 5px;
+        margin-top: 10px;
+        font-style: italic;
+    }
+
+    .no-sessions {
+        text-align: center;
+        padding: 40px;
+        background-color: #fafafa;
+        border: 1px dashed #ccc;
+        border-radius: 10px;
+        margin-top: 30px;
+        color: #777;
+    }
+
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.85);
+        overflow: auto;
+    }
+
+    .modal-content {
+        margin: 100px auto;
+        padding: 20px;
+        background: #111;
+        width: 80%;
+        max-width: 720px;
+        border-radius: 10px;
+        text-align: center;
+    }
+
+    .close {
+        color: #fff;
+        float: right;
+        font-size: 28px;
+        cursor: pointer;
+        margin-top: -10px;
+    }
+
+    #patientVideo {
+        width: 100%;
+        border-radius: 8px;
+    }
+
+    #videoStatus {
+        margin-top: 15px;
+        font-size: 14px;
+        color: white;
+    }
+
+    .back-btn {
+        display: inline-block;
+        margin: 30px;
+        text-decoration: none;
+        color: #007BFF;
+        font-weight: 600;
+    }
+
+    .back-btn:hover {
+        text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+        .modal-content {
+            width: 95%;
+        }
+
+        .play-btn {
+            width: 100%;
+            margin-top: 10px;
+        }
+    }
+
+    .dashboard-layout{
+        display:flex;
+        gap:25px;
+        align-items:flex-start;
+    }
+
+    .left-panel{
+        width:30%;
+        position:sticky;
+        top:20px;
+    }
+
+    .right-panel{
+        width:70%;
+    }
+
+    .info-card,
+    .weekly-card{
+        background:#e8f5e9;
+        border-left:5px solid #4caf50;
+        padding:20px;
+        border-radius:12px;
+        margin-bottom:20px;
+        box-shadow:0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .info-card h3,
+    .weekly-card h3{
+        color:#2e7d32;
+        margin-bottom:15px;
+        font-weight:700;
+    }
+
+    .info-card p,
+    .weekly-card p,
+    .info-card li,
+    .weekly-card li{
+        color:#2e7d32;
+        font-size:15px;
+        line-height:1.8;
+    }
+
+    .weekly-card ul{
+        padding-left:20px;
+        margin-top:10px;
+    }
+
+    .history-title{
+        margin-bottom:20px;
+        color:#1870b4;
+    }
+
+    .right-panel .session-list{
+        display:grid;
+        grid-template-columns:repeat(2, 1fr);
+        gap:30px;
+    }
+
+    .right-panel .session-card{
+        width:100%;
+        padding:20px;
+    }
+
+    @media(max-width:992px){
+
+        .dashboard-layout{
+            flex-direction:column;
+        }
+
+        .left-panel,
+        .right-panel{
+            width:100%;
+        }
+    }
+
+    .observation-list{
+        padding-left:20px;
+    }
+
+    .observation-list li{
+        color:#2e7d32;
+        margin-bottom:12px;
+        font-size:15px;
+        line-height:1.7;
+        font-weight:500;
+    }
+
+    .session-list{
+        display:grid;
+        grid-template-columns:repeat(2,1fr);
+        gap:20px;
+    }
+
+    .session-card{
+        width:100%;
+    }
+
+    @media(max-width:768px){
+        .session-list{
+            grid-template-columns:1fr;
+        }
+    }
+
+    @media(max-width:768px){
+        .right-panel .session-list{
+            grid-template-columns:1fr;
+        }
+    }
+
+    .session-card video{
+        width:100%;
+        height:350px;
+        object-fit:cover;
+        border-radius:10px;
+    }
+
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('videoModal');
+    const videoPlayer = document.getElementById('patientVideo');
+    const closeBtn = document.querySelector('.close');
+    const statusDiv = document.getElementById('videoStatus');
+
+    document.querySelectorAll('.play-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const videoUrl = this.getAttribute('data-video-url');
+            statusDiv.textContent = 'Loading video...';
+            videoPlayer.src = videoUrl;
+            modal.style.display = 'block';
+
+            const playPromise = videoPlayer.play();
+
+            if (playPromise !== undefined) {
+                playPromise
+                    .then(() => {
+                        statusDiv.textContent = '';
+                    })
+                    .catch(() => {
+                        statusDiv.textContent = 'Click play to start video';
+                    });
+            }
+        });
+    });
+
+    closeBtn.addEventListener('click', function () {
+        videoPlayer.pause();
+        modal.style.display = 'none';
+    });
+
+    window.addEventListener('click', function (event) {
+        if (event.target === modal) {
+            videoPlayer.pause();
+            modal.style.display = 'none';
+        }
+    });
+
+    videoPlayer.addEventListener('error', function () {
+        statusDiv.textContent = 'Error loading video.';
+        statusDiv.style.color = '#ff4d4d';
+    });
+
+    // COM Port Management for Pressure Mat Game
+    const portSelect = document.getElementById('mat-port-select');
+    const refreshBtn = document.getElementById('refresh-ports-btn');
+    const statusMsg = document.getElementById('port-status-msg');
+    const playGameBtn = document.getElementById('play-game-btn');
+    const patientId = "{{ patient.patient_id }}";
+
+    async function loadComPorts() {
+        if (!portSelect) return;
+        portSelect.innerHTML = '<option value="auto">⚡ Auto-detect Port</option>';
+        statusMsg.style.display = 'block';
+        statusMsg.textContent = 'Scanning ports...';
+        try {
+            const res = await fetch('/api/ports/');
+            const data = await res.json();
+            if (data.success && data.ports && data.ports.length > 0) {
+                data.ports.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.device;
+                    opt.textContent = `🔌 ${p.description}`;
+                    portSelect.appendChild(opt);
+                });
+                statusMsg.textContent = `Found ${data.ports.length} COM port(s)`;
+            } else {
+                statusMsg.textContent = 'No active COM ports detected (Auto-detect mode active)';
+            }
+        } catch (e) {
+            statusMsg.textContent = 'Could not scan ports (using Auto-detect)';
+        }
+        setTimeout(() => { statusMsg.style.display = 'none'; }, 3000);
+    }
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadComPorts);
+    }
+
+    if (playGameBtn) {
+        playGameBtn.addEventListener('click', async function (e) {
+            e.preventDefault();
+            const selectedPort = portSelect ? portSelect.value : 'auto';
+            statusMsg.style.display = 'block';
+            statusMsg.textContent = 'Connecting mat bridge...';
+            try {
+                await fetch(`/api/game/${patientId}/start_bridge/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ port: selectedPort })
+                });
+            } catch (err) {
+                console.error("Bridge start error:", err);
+            }
+            const gameUrl = `{% url 'game_page' patient.patient_id %}?port=${encodeURIComponent(selectedPort)}`;
+            window.location.href = gameUrl;
+        });
+    }
+
+    loadComPorts();
+});
+</script>
+{% endblock %}

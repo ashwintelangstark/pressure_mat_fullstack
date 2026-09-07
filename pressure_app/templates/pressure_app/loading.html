@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Starting Visualization...</title>
+  <style>
+    body {display:flex;justify-content:center;align-items:center;height:100vh;font-family:Arial;background:#f5f5f5;}
+    .loader {width:60px;height:60px;border:8px solid #eee;border-top:8px solid #1977cc;border-radius:50%;animation:spin 1s linear infinite;}
+    @keyframes spin {0% {transform:rotate(0deg);}100% {transform:rotate(360deg);}}
+    p {text-align:center;margin-top:15px;}
+  </style>
+</head>
+<body>
+  <div>
+    <div class="loader"></div>
+    <p>Launching visualization... Please wait</p>
+  </div>
+  <script>
+    setTimeout(function(){
+        window.location.href = `/start/?patient_id={{ patient_id }}`;
+    }, 1500);
+  </script>
+</body>
+</html>

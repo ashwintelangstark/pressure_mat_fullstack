@@ -1,0 +1,532 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pressure Visualization System - Doctor Portal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1870b4;
+            --primary-dark: #1870b4;
+            --secondary-color: #3498db;
+            --dark-color: #2c3e50;
+            --light-color: #f8f9fa;
+            --danger-color: #e74c3c;
+            --text-color: #333;
+            --text-light: black;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            display: flex;
+            min-height: 600px;
+        }
+        
+        .hero-section {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            color: white;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .hero-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 45, 139, 0.55);
+            z-index: 2;
+        }
+
+        .hero-section > *:not(.hero-video):not(.hero-overlay) {
+            position: relative;
+            z-index: 3;
+        }
+        
+        .hero-section h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .hero-section p {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        
+        .hero-features {
+            margin-top: auto;
+            width: 100%;
+        }
+        
+        .feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .feature i {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .form-section {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            outline: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-light);
+            position: relative;
+            transition: var(--transition);
+        }
+        
+        .tab:hover {
+            color: white;
+        }
+        .tab.active {
+            color: var(--primary-color);
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            flex: 1;
+            color: white;
+        }
+        
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark-color);
+        }
+        
+        .input-with-icon {
+            position: relative;
+        }
+        
+        .input-with-icon i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px 15px 12px 45px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+        
+        input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+            outline: none;
+        }
+        
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: var(--transition);
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+        
+        .error {
+            color: var(--danger-color);
+            margin: 10px 0;
+            font-size: 0.9rem;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                max-width: 500px;
+            }
+            
+            .hero-section {
+                padding: 30px;
+                text-align: center;
+                align-items: center;
+            }
+            
+            .form-section {
+                padding: 30px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                border-radius: 0;
+            }
+            
+            .hero-section, .form-section {
+                padding: 25px;
+            }
+            
+            .tab {
+                padding: 10px 15px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero-section">
+            <video class="hero-video" autoplay muted loop playsinline>
+                <source src="{% static 'video/7802051-uhd_2094_4096_25fps.mp4' %}" type="video/mp4">
+            </video>
+
+            <div class="hero-overlay"></div>
+            <h1>Pressure Visualization System</h1>
+            <p>Advanced patient monitoring and analysis for medical professionals</p>
+            
+            <div class="hero-features">
+                <div class="feature">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Real-time pressure data visualization</span>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-video"></i>
+                    <span>Session recording and playback</span>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-user-shield"></i>
+                    <span>Secure patient data management</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('login')">Login</button>
+                <button class="tab" onclick="switchTab('register')">Register</button>
+            </div>
+            
+            <div id="login" class="tab-content active">
+                <div class="form-group">
+                    <div class="input-with-icon">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="login-username" placeholder="Username">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-with-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="login-password" placeholder="Password">
+                    </div>
+                </div>
+                
+                <div id="login-error" class="error"></div>
+                
+                <button onclick="doctorLogin()" id="login-btn">Login</button>
+            </div>
+            
+            <div id="register" class="tab-content">
+                <div class="form-group">
+                    <div class="input-with-icon">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="reg-username" placeholder="Username">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-with-icon">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="reg-email" placeholder="Email">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-with-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="reg-password" placeholder="Password">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-with-icon">
+                        <i class="fas fa-id-card"></i>
+                        <input type="text" id="reg-first-name" placeholder="First Name">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-with-icon">
+                        <i class="fas fa-id-card"></i>
+                        <input type="text" id="reg-last-name" placeholder="Last Name">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-with-icon">
+                        <i class="fas fa-id-badge"></i>
+                        <input type="text" id="reg-license" placeholder="Medical License Number">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-with-icon">
+                        <i class="fas fa-hospital"></i>
+                        <input type="text" id="reg-hospital" placeholder="Hospital/Clinic">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-with-icon">
+                        <i class="fas fa-stethoscope"></i>
+                        <input type="text" id="reg-specialization" placeholder="Specialization">
+                    </div>
+                </div>
+                
+                <div id="register-error" class="error"></div>
+                
+                <button onclick="doctorRegister()" id="register-btn">Register</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Keep all existing JavaScript functions exactly as they are
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            document.querySelectorAll('.tab').forEach(tab => {
+                if (tab.textContent.toLowerCase() === tabName) {
+                    tab.classList.add('active');
+                }
+            });
+        }
+        
+        function doctorLogin() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            const errorDiv = document.getElementById('login-error');
+            const loginBtn = document.getElementById('login-btn');
+            
+            if (!username || !password) {
+                errorDiv.textContent = 'Please fill in all fields';
+                return;
+            }
+            
+            errorDiv.textContent = '';
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="spinner"></span> Logging in...';
+            
+            fetch('/api/doctor/login/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    errorDiv.textContent = data.error || 'Login failed';
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Login';
+                }
+            })
+            .catch(error => {
+                errorDiv.textContent = 'Network error';
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
+            });
+        }
+        
+        function doctorRegister() {
+            const username = document.getElementById('reg-username').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const firstName = document.getElementById('reg-first-name').value;
+            const lastName = document.getElementById('reg-last-name').value;
+            const license = document.getElementById('reg-license').value;
+            const hospital = document.getElementById('reg-hospital').value;
+            const specialization = document.getElementById('reg-specialization').value;
+            const errorDiv = document.getElementById('register-error');
+            const registerBtn = document.getElementById('register-btn');
+            
+            if (!username || !email || !password || !firstName || !lastName || !license || !hospital || !specialization) {
+                errorDiv.textContent = 'Please fill in all fields';
+                return;
+            }
+            
+            errorDiv.textContent = '';
+            registerBtn.disabled = true;
+            registerBtn.innerHTML = '<span class="spinner"></span> Registering...';
+            
+            fetch('/api/doctor/register/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    username: username,
+                    email: email,
+                    password: password,
+                    first_name: firstName,
+                    last_name: lastName,
+                    license_number: license,
+                    hospital: hospital,
+                    specialization: specialization
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    errorDiv.textContent = data.error || 'Registration failed';
+                    registerBtn.disabled = false;
+                    registerBtn.textContent = 'Register';
+                }
+            })
+            .catch(error => {
+                errorDiv.textContent = 'Network error';
+                registerBtn.disabled = false;
+                registerBtn.textContent = 'Register';
+            });
+        }
+        
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>

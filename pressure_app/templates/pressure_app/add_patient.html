@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pressure Visualization System - Add Patient</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #4facfe, #00f2fe);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .form-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 35px 40px;
+            border-radius: 15px;
+            box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.15);
+            width: 350px;
+            animation: fadeIn 0.6s ease-in-out;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+
+        label {
+            display: block;
+            margin: 12px 0 6px;
+            color: #34495e;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: 0.3s;
+            background-color: #f9f9f9;
+        }
+
+        input[type="text"]:focus {
+            border-color: #3498db;
+            outline: none;
+            background-color: #fff;
+            box-shadow: 0 0 6px rgba(52, 152, 219, 0.4);
+        }
+
+        button {
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            background-color: #3498db;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 15px;
+            color: #2980b9;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>Patient Registration</h1>
+        <form method="POST">
+            {% csrf_token %}
+            <label>Name:</label>
+            <input type="text" name="name" placeholder="Enter full name" required pattern="[A-Za-z ]+" oninput="this.value = this.value.replace(/[^A-Za-z ]/g, '')">
+
+            <label>Patient ID:</label>
+            <input type="number" name="patient_id" placeholder="Enter unique ID" required oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+
+            <button type="submit">Add Patient</button>
+        </form>
+        <a class="back-link" href="{% url 'home' %}">← Back to Dashboard</a>
+    </div>
+</body>
+</html>
