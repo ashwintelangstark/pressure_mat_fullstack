@@ -465,12 +465,22 @@ document.addEventListener('DOMContentLoaded', function () {
             const res = await fetch('/api/ports/');
             const data = await res.json();
             if (data.success && data.ports && data.ports.length > 0) {
+                let preferred = null;
                 data.ports.forEach(p => {
                     const opt = document.createElement('option');
                     opt.value = p.device;
                     opt.textContent = `🔌 ${p.description}`;
+                    const dev = p.device.toLowerCase();
+                    const desc = (p.description || '').toLowerCase();
+                    if (dev.includes('usb') || desc.includes('cp210') || desc.includes('ch340') || desc.includes('uart')) {
+                        preferred = p.device;
+                        opt.selected = true;
+                    }
                     portSelect.appendChild(opt);
                 });
+                if (preferred) {
+                    portSelect.value = preferred;
+                }
                 statusMsg.textContent = `Found ${data.ports.length} COM port(s)`;
             } else {
                 statusMsg.textContent = 'No active COM ports detected (Auto-detect mode active)';

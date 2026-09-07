@@ -132,8 +132,9 @@ def start_visualization(request):
         script_path = base_dir / "pressure_app" / "launch_tkinter.py"
         
         # Use CREATE_NEW_CONSOLE flag on Windows
-        startupinfo = subprocess.STARTUPINFO()
-        if sys.platform == "win32":
+        startupinfo = None
+        if sys.platform == "win32" and hasattr(subprocess, 'STARTUPINFO'):
+            startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         # Debug print
         print(f"Attempting to launch Tkinter app with patient_id: {patient_id}")
@@ -621,6 +622,7 @@ GAME_FRAME_CACHE_TIMEOUT = 5  # seconds - if the bridge stops posting, frame goe
 
 # Global process tracker for game mat bridge processes
 BRIDGE_PROCESSES = {}
+BRIDGE_PORTS = {}
 
 
 def get_available_ports():
@@ -650,6 +652,13 @@ def game_page(request, patient_id):
     patient = get_object_or_404(Patient, patient_id=patient_id)
     ports = get_available_ports()
     selected_port = request.GET.get('port', 'auto')
+    if selected_port == 'auto' and ports:
+        for p in ports:
+            dev = p.get('device', '').lower()
+            desc = p.get('description', '').lower()
+            if 'usb' in dev or 'cp210' in desc or 'ch340' in desc or 'uart' in desc:
+                selected_port = p['device']
+                break
     return render(request, 'pressure_app/game.html', {
         'patient': patient,
         'ports': ports,
@@ -678,9 +687,21 @@ def api_start_game_bridge(request, patient_id):
         if not port:
             port = request.GET.get('port')
 
-        # Terminate any existing bridge process for this patient
-        old_proc = BRIDGE_PROCESSES.get(patient_id)
+        patient_key = str(patient_id)
+        target_port = port if port else 'auto'
+
+        # If already running on the same port, keep it running smoothly
+        old_proc = BRIDGE_PROCESSES.get(patient_key)
+        curr_port = BRIDGE_PORTS.get(patient_key)
         if old_proc and old_proc.poll() is None:
+            if curr_port == target_port or (target_port == 'auto' and curr_port):
+                return JsonResponse({
+                    'success': True,
+                    'patient_id': patient_id,
+                    'port': curr_port,
+                    'message': f"Mat bridge already running on {curr_port}"
+                })
+            # Port changed, terminate old process
             try:
                 old_proc.terminate()
                 old_proc.wait(timeout=1.0)
@@ -689,32 +710,55 @@ def api_start_game_bridge(request, patient_id):
                     old_proc.kill()
                 except Exception:
                     pass
+            time.sleep(0.3)
 
         base_dir = Path(__file__).parent.parent
         script_path = base_dir / "pressure_app" / "game_bridge.py"
 
-        cmd = [sys.executable, str(script_path), str(patient_id)]
-        if port and port != 'auto':
-            cmd.append(str(port))
+        # Determine python executable: prefer virtualenv python
+        py_bin = sys.executable
+        venv_py = base_dir / ".venv" / "bin" / "python"
+        if venv_py.exists():
+            py_bin = str(venv_py)
 
-        startupinfo = subprocess.STARTUPINFO()
-        if sys.platform == "win32":
+        cmd = [py_bin, "-u", str(script_path), patient_key]
+        if target_port and target_port != 'auto':
+            cmd.append(str(target_port))
+
+        startupinfo = None
+        if sys.platform == "win32" and hasattr(subprocess, 'STARTUPINFO'):
+            startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+        log_path = base_dir / "pressure_app" / f"bridge_{patient_key}.log"
+        log_file = open(log_path, "w")
 
         proc = subprocess.Popen(
             cmd,
             startupinfo=startupinfo,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stdout=log_file,
+            stderr=subprocess.STDOUT
         )
 
-        BRIDGE_PROCESSES[patient_id] = proc
+        BRIDGE_PROCESSES[patient_key] = proc
+        BRIDGE_PORTS[patient_key] = target_port
+
+        # Wait briefly to confirm it didn't exit immediately with an error
+        time.sleep(0.4)
+        if proc.poll() is not None:
+            log_file.close()
+            with open(log_path, "r") as f:
+                err_text = f.read()
+            return JsonResponse({
+                'success': False,
+                'error': f"Bridge failed to start: {err_text.strip()}"
+            }, status=500)
 
         return JsonResponse({
             'success': True,
             'patient_id': patient_id,
-            'port': port or 'auto',
-            'message': f"Mat bridge started on {port or 'auto-detected port'}"
+            'port': target_port,
+            'message': f"Mat bridge started on {target_port}"
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -723,7 +767,8 @@ def api_start_game_bridge(request, patient_id):
 @csrf_exempt
 def api_stop_game_bridge(request, patient_id):
     """Stop running game bridge for patient_id."""
-    proc = BRIDGE_PROCESSES.get(patient_id)
+    patient_key = str(patient_id)
+    proc = BRIDGE_PROCESSES.get(patient_key)
     if proc and proc.poll() is None:
         try:
             proc.terminate()
@@ -733,7 +778,8 @@ def api_stop_game_bridge(request, patient_id):
                 proc.kill()
             except Exception:
                 pass
-        BRIDGE_PROCESSES.pop(patient_id, None)
+        BRIDGE_PROCESSES.pop(patient_key, None)
+        BRIDGE_PORTS.pop(patient_key, None)
     return JsonResponse({'success': True, 'patient_id': patient_id})
 
 
@@ -755,6 +801,7 @@ def api_game_frame(request, patient_id):
                 'left_pct': data.get('left_pct'),
                 'right_pct': data.get('right_pct'),
                 'total_pressure': data.get('total_pressure', 0),
+                'touching': data.get('touching', False),
                 'port': data.get('port'),
                 'server_time': time.time(),
             }

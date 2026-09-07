@@ -26,7 +26,9 @@ def pick_port():
         return None
     # Prefer USB serial ports if available
     for p in ports:
-        if "usb" in p.device.lower() or "cp210" in (p.description or "").lower() or "ch340" in (p.description or "").lower():
+        dev = p.device.lower()
+        desc = (p.description or "").lower()
+        if "usb" in dev or "cp210" in desc or "ch340" in desc or "uart" in desc:
             return p.device
     return ports[0].device
 
@@ -81,10 +83,19 @@ def main():
         sys.exit(1)
 
     print(f"Connecting to {port} at {BAUD_RATE} baud for patient {patient_id}...")
-    try:
-        ser = serial.Serial(port, BAUD_RATE, timeout=0.01)
-    except Exception as e:
-        print(f"Failed to open port {port}: {e}")
+    ser = None
+    last_err = None
+    for attempt in range(6):
+        try:
+            ser = serial.Serial(port, BAUD_RATE, timeout=0.02)
+            break
+        except Exception as e:
+            last_err = e
+            print(f"Port {port} busy or unavailable (attempt {attempt+1}/6): {e}")
+            time.sleep(0.5)
+
+    if ser is None:
+        print(f"Failed to open port {port} after 6 attempts: {last_err}")
         sys.exit(1)
 
     pressure_data = np.zeros((20, 20), dtype=float)
@@ -92,17 +103,22 @@ def main():
     last_post = 0.0
     buffer = bytearray()
 
-    print(f"Streaming live readings to {frame_url}. Press Ctrl+C to stop.")
+    print(f"Connected! Streaming live readings to {frame_url}. Press Ctrl+C to stop.")
 
     try:
         while True:
-            waiting = ser.in_waiting
-            chunk = ser.read(waiting if waiting > 0 else 1)
+            try:
+                waiting = ser.in_waiting
+                chunk = ser.read(waiting if waiting > 0 else 1)
+            except Exception as e:
+                print(f"Serial read error: {e}")
+                time.sleep(0.05)
+                continue
+
             if chunk:
                 buffer.extend(chunk)
 
             # Process all complete 62-byte frames in buffer (0xFF + 60 data bytes + 0xFE)
-            packet_received = False
             while len(buffer) >= 62:
                 if buffer[0] == 0xFF:
                     if buffer[61] == 0xFE:
@@ -110,7 +126,6 @@ def main():
                         packet = buffer[1:61]
                         process_pressure_data(packet, pressure_data)
                         del buffer[:62]
-                        packet_received = True
                     else:
                         # Corrupted or misaligned, search for next 0xFF
                         del buffer[0]
@@ -146,6 +161,8 @@ def main():
                 else:
                     # Heartbeat so web UI knows mat is connected and live
                     payload = {
+                        'x': None,
+                        'y': None,
                         'port': port,
                         'total_pressure': 0.0,
                         'touching': False,
@@ -153,8 +170,7 @@ def main():
 
                 try:
                     requests.post(frame_url, json=payload, timeout=0.3)
-                except requests.exceptions.RequestException as e:
-                    # Server might be restarting or busy; keep going
+                except requests.exceptions.RequestException:
                     pass
 
                 last_post = now
@@ -162,7 +178,7 @@ def main():
     except KeyboardInterrupt:
         print("\nStopped.")
     finally:
-        if ser.is_open:
+        if ser and ser.is_open:
             ser.close()
 
 

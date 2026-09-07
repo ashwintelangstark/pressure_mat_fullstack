@@ -381,24 +381,32 @@ async function pollFrame() {
     try {
         const resp = await fetch(FRAME_URL, { cache: 'no-store' });
         const data = await resp.json();
+        const badge = document.getElementById('connection-badge');
         if (data.connected) {
             connected = true;
             const portName = data.port ? ` (${data.port})` : '';
-            document.getElementById('connection-badge').textContent = `Mat connected${portName}`;
-            document.getElementById('connection-badge').className = 'connected';
+            if (data.touching) {
+                const pressureDisplay = data.total_pressure ? ` — Pressure: ${Math.round(data.total_pressure)}` : '';
+                badge.textContent = `🟢 Mat Connected${portName}${pressureDisplay} (Foot Active)`;
+                badge.className = 'connected';
+            } else {
+                badge.textContent = `🟢 Mat Connected${portName} — Ready (Stand on mat)`;
+                badge.className = 'connected';
+            }
             if (typeof data.x === 'number' && typeof data.y === 'number') {
                 playerPos.x = data.x;
                 playerPos.y = data.y;
             }
         } else {
             connected = false;
-            document.getElementById('connection-badge').textContent = 'Mat not connected (use arrow keys)';
-            document.getElementById('connection-badge').className = 'disconnected';
+            badge.textContent = '⚠️ Mat not connected (select port above or use arrow keys)';
+            badge.className = 'disconnected';
         }
     } catch (e) {
         connected = false;
-        document.getElementById('connection-badge').textContent = 'Mat not connected (use arrow keys)';
-        document.getElementById('connection-badge').className = 'disconnected';
+        const badge = document.getElementById('connection-badge');
+        badge.textContent = '⚠️ Mat not connected (select port above or use arrow keys)';
+        badge.className = 'disconnected';
     }
 }
 
@@ -435,16 +443,31 @@ canvas.addEventListener('touchmove', (e) => { if (!connected) playerPos = posFro
 // Mat Bridge & COM Port Management inside Game Page
 const gamePortSelect = document.getElementById('game-port-select');
 const gameRefreshBtn = document.getElementById('game-refresh-ports-btn');
+let isStartingBridge = false;
 
 async function startMatBridge(port) {
+    if (isStartingBridge) return;
+    isStartingBridge = true;
+    const badge = document.getElementById('connection-badge');
+    if (!connected) {
+        badge.textContent = `🔄 Connecting to mat on ${port || 'auto'}...`;
+        badge.className = 'disconnected';
+    }
     try {
-        await fetch(`/api/game/${patientId}/start_bridge/`, {
+        const resp = await fetch(`/api/game/${patientId}/start_bridge/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ port: port || 'auto' })
         });
+        const result = await resp.json();
+        if (!result.success && result.error) {
+            badge.textContent = `⚠️ Connection error: ${result.error}`;
+            badge.className = 'disconnected';
+        }
     } catch (e) {
         console.error('Bridge start error:', e);
+    } finally {
+        isStartingBridge = false;
     }
 }
 
@@ -478,17 +501,20 @@ if (gamePortSelect) {
 }
 
 document.getElementById('start-btn').addEventListener('click', () => {
-    const selectedPort = gamePortSelect ? gamePortSelect.value : 'auto';
-    startMatBridge(selectedPort);
+    // Only attempt start if not already connected
+    if (!connected) {
+        const selectedPort = gamePortSelect ? gamePortSelect.value : 'auto';
+        startMatBridge(selectedPort);
+    }
     startGame();
 });
 
-// Auto start bridge on page load if port selected
+// Auto start bridge on page load
 const initialPort = gamePortSelect ? gamePortSelect.value : 'auto';
 startMatBridge(initialPort);
 
 pollFrame();
-pollTimer = setInterval(pollFrame, 150);
+pollTimer = setInterval(pollFrame, 120);
 loop();
 </script>
 </body>

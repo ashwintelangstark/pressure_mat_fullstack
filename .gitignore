@@ -20,5 +20,6 @@ ENV/
 .DS_Store
 
 # IDEs
-.vscode/
-.idea/
+# Logs
+*.log
+bridge_*.log
