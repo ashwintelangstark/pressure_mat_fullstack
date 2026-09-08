@@ -34,9 +34,9 @@ const byte w3 = 14;
 const byte EN_MUX_A = 13; // Row MUX A (Rows 0-15)
 const byte EN_MUX_B = 17; // Row MUX B (Rows 16-19)
 
-// --- Signal Pins ---
-const byte R_SIG_PIN = 32; // Row Analog Sense (ADC1)
-const byte C_SIG_PIN = 33; // Column Drive (VCC)
+// --- Signal Pins (Verified Hardware Pinout) ---
+const byte DRIVE_PIN = 32; // Drive Reference Voltage (3.3V Output)
+const byte SENSE_PIN = 33; // Analog Matrix Sense Input (ADC1_CH5)
 
 // --- Matrix Constants ---
 const byte ROWS = 20;
@@ -45,7 +45,7 @@ int baseline[ROWS][COLS];
 
 // --- Tuning Parameters for High Accuracy ---
 const int SETTLE_TIME_US = 75;     // Settle time for MUX & trace capacitance
-int touchThreshold = 28;          // ADC threshold above baseline to trigger cell touch (optimized for 400-cell detection)
+int touchThreshold = 45;          // Noise-free ADC threshold above baseline
 const int FRAME_DELAY_MS = 10;    // Scan delay (~25 FPS real-time scan)
 
 // 60-byte payload buffer (20 rows * 3 bytes)
@@ -96,35 +96,40 @@ int readSensoredCell() {
   delayMicroseconds(SETTLE_TIME_US);
 
   // Dummy read to flush the ESP32 ADC internal sample-and-hold capacitor
-  (void)analogRead(R_SIG_PIN);
+  (void)analogRead(SENSE_PIN);
   delayMicroseconds(8);
 
   // Take 2 consecutive reads and average
-  int s1 = analogRead(R_SIG_PIN);
+  int s1 = analogRead(SENSE_PIN);
   delayMicroseconds(8);
-  int s2 = analogRead(R_SIG_PIN);
+  int s2 = analogRead(SENSE_PIN);
 
   return (s1 + s2) >> 1;
 }
 
 void calibrate() {
+  long sums[ROWS][COLS];
   for (byte r = 0; r < ROWS; r++) {
-    selectRow(r);
     for (byte c = 0; c < COLS; c++) {
-      selectCol(c);
-      delayMicroseconds(SETTLE_TIME_US);
+      sums[r][c] = 0;
+    }
+  }
 
-      // Dummy read
-      (void)analogRead(R_SIG_PIN);
-      delayMicroseconds(10);
-
-      // Average 8 samples for stable baseline
-      long sum = 0;
-      for (int i = 0; i < 8; i++) {
-        sum += analogRead(R_SIG_PIN);
-        delayMicroseconds(15);
+  // Measure 8 full scan passes using exact same timing as loop()
+  for (int pass = 0; pass < 8; pass++) {
+    for (byte r = 0; r < ROWS; r++) {
+      selectRow(r);
+      for (byte c = 0; c < COLS; c++) {
+        selectCol(c);
+        sums[r][c] += readSensoredCell();
       }
-      baseline[r][c] = (int)(sum / 8);
+    }
+    delay(5);
+  }
+
+  for (byte r = 0; r < ROWS; r++) {
+    for (byte c = 0; c < COLS; c++) {
+      baseline[r][c] = (int)(sums[r][c] / 8);
     }
   }
 
@@ -167,9 +172,9 @@ void setup() {
     digitalWrite(outPins[i], HIGH); // Disable all MUXes initially
   }
 
-  pinMode(R_SIG_PIN, INPUT);
-  pinMode(C_SIG_PIN, OUTPUT);
-  digitalWrite(C_SIG_PIN, HIGH); // Drive column with reference voltage
+  pinMode(DRIVE_PIN, OUTPUT);
+  digitalWrite(DRIVE_PIN, HIGH); // Drive matrix with reference voltage
+  pinMode(SENSE_PIN, INPUT);     // Read sense voltage on ADC pin 33
 
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db);

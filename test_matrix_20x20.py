@@ -178,6 +178,7 @@ def test_live_esp32_hardware(port="/dev/cu.usbserial-0001", duration=3.0):
     ser.reset_input_buffer()
     time.sleep(0.1)
 
+    ser.reset_input_buffer()
     start = time.time()
     valid_frames = 0
     corrupted_frames = 0
@@ -198,8 +199,13 @@ def test_live_esp32_hardware(port="/dev/cu.usbserial-0001", duration=3.0):
                     matrix_sum += mat
                     del buffer[:62]
                 else:
-                    corrupted_frames += 1
-                    del buffer[0]
+                    # Seek next 0xFF in buffer
+                    try:
+                        next_idx = buffer.index(0xFF, 1)
+                        del buffer[:next_idx]
+                    except ValueError:
+                        buffer.clear()
+                        break
             else:
                 try:
                     idx = buffer.index(0xFF)
