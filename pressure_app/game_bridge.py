@@ -60,37 +60,14 @@ def unpack_frame(packet):
 
 def filter_noise_and_compute_pressure(raw_mat):
     """
-    Filter electrical noise:
-    - Reject isolated 1-cell glitches unless adjacent to another active cell.
-    - When 0 cells are active, return pure zero matrix.
+    Direct 1:1 touch mapping: Any cell pressed on the mat immediately displays at full pressure.
     """
-    total_active = np.count_nonzero(raw_mat)
+    total_active = int(np.count_nonzero(raw_mat))
     if total_active == 0:
         return np.zeros((20, 20), dtype=float), 0
 
-    clean_mat = np.zeros((20, 20), dtype=float)
-    y_idx, x_idx = np.indices((20, 20))
-
-    if total_active == 1:
-        # Isolated 1-point touch is accepted only if pressure is sustained (or in ultra-sensitive feather mode)
-        # To avoid single-cycle ADC noise, we pass it with low weight
-        clean_mat = raw_mat.astype(float) * 100.0
-        return clean_mat, 1
-
-    for r in range(20):
-        for c in range(20):
-            if raw_mat[r, c]:
-                # Check for neighbor support
-                r_min, r_max = max(0, r - 1), min(19, r + 1)
-                c_min, c_max = max(0, c - 1), min(19, c + 1)
-                neighbors = np.sum(raw_mat[r_min:r_max + 1, c_min:c_max + 1])
-                if neighbors >= 2 or total_active >= 3:
-                    clean_mat[r, c] = 100.0
-                else:
-                    clean_mat[r, c] = 80.0
-
-    active_count = int(np.count_nonzero(clean_mat > 0))
-    return clean_mat, active_count
+    clean_mat = raw_mat.astype(float) * 100.0
+    return clean_mat, total_active
 
 
 def calculate_cop(pressure_data):
@@ -138,11 +115,11 @@ def main():
         ser.write(b'c\n')  # Zero baseline across all 400 cells
         ser.flush()
         time.sleep(0.8)
-        ser.write(b't50\n')  # Default Recommended threshold
+        ser.write(b't15\n')  # Default Recommended threshold (Responsive touch)
         ser.flush()
         time.sleep(0.1)
         ser.reset_input_buffer()
-        print("Initialized mat baseline (Zeroed) & set recommended sensitivity (50).")
+        print("Initialized mat baseline (Zeroed) & set recommended sensitivity (15).")
     except Exception as ie:
         print(f"Init warning: {ie}")
 
