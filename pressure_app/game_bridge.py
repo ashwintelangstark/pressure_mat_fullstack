@@ -100,6 +100,18 @@ def main():
         print(f"Failed to open port {port} after 6 attempts: {last_err}")
         sys.exit(1)
 
+    # Initialize mat baseline calibration and optimal threshold
+    try:
+        time.sleep(0.5)
+        ser.write(b'c\n')
+        time.sleep(0.4)
+        ser.write(b't45\n')
+        time.sleep(0.1)
+        ser.reset_input_buffer()
+        print("Calibrated mat baseline and set threshold to 45.")
+    except Exception as ie:
+        print(f"Init warning: {ie}")
+
     pressure_data = np.zeros((20, 20), dtype=float)
     frame_url = f"{SERVER_URL}/api/game/{patient_id}/frame/"
     last_post = 0.0

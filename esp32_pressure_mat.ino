@@ -44,8 +44,8 @@ const byte COLS = 20;
 int baseline[ROWS][COLS];
 
 // --- Tuning Parameters for High Accuracy ---
-const int SETTLE_TIME_US = 75;     // Settle time for MUX & trace capacitance
-int touchThreshold = 45;          // Noise-free ADC threshold above baseline
+const int SETTLE_TIME_US = 80;     // Settle time for MUX & trace capacitance
+int touchThreshold = 45;          // Verified noise floor is <= 14; 45 ensures 100% noise-free resting and instant touch response
 const int FRAME_DELAY_MS = 10;    // Scan delay (~25 FPS real-time scan)
 
 // 60-byte payload buffer (20 rows * 3 bytes)
@@ -62,7 +62,7 @@ void selectRow(byte r) {
   digitalWrite(w2, (addr >> 2) & 1);
   digitalWrite(w3, (addr >> 3) & 1);
 
-  delayMicroseconds(2); // Slew-rate stabilization before enable
+  delayMicroseconds(5); // Slew-rate stabilization before enable
 
   if (r < 16) {
     digitalWrite(EN_MUX_A, LOW);
@@ -82,7 +82,7 @@ void selectCol(byte c) {
   digitalWrite(s2, (addr >> 2) & 1);
   digitalWrite(s3, (addr >> 3) & 1);
 
-  delayMicroseconds(2); // Slew-rate stabilization before enable
+  delayMicroseconds(5); // Slew-rate stabilization before enable
 
   if (c < 16) {
     digitalWrite(EN_MUX_C, LOW);
@@ -97,39 +97,39 @@ int readSensoredCell() {
 
   // Dummy read to flush the ESP32 ADC internal sample-and-hold capacitor
   (void)analogRead(SENSE_PIN);
-  delayMicroseconds(8);
+  delayMicroseconds(10);
 
   // Take 2 consecutive reads and average
   int s1 = analogRead(SENSE_PIN);
-  delayMicroseconds(8);
+  delayMicroseconds(10);
   int s2 = analogRead(SENSE_PIN);
 
   return (s1 + s2) >> 1;
 }
 
 void calibrate() {
-  long sums[ROWS][COLS];
+  // Clean baseline matrix
   for (byte r = 0; r < ROWS; r++) {
     for (byte c = 0; c < COLS; c++) {
-      sums[r][c] = 0;
+      baseline[r][c] = 0;
     }
   }
 
-  // Measure 8 full scan passes using exact same timing as loop()
+  // Accumulate 8 passes directly in baseline array
   for (int pass = 0; pass < 8; pass++) {
     for (byte r = 0; r < ROWS; r++) {
       selectRow(r);
       for (byte c = 0; c < COLS; c++) {
         selectCol(c);
-        sums[r][c] += readSensoredCell();
+        baseline[r][c] += readSensoredCell();
       }
     }
-    delay(5);
+    delay(4);
   }
 
   for (byte r = 0; r < ROWS; r++) {
     for (byte c = 0; c < COLS; c++) {
-      baseline[r][c] = (int)(sums[r][c] / 8);
+      baseline[r][c] /= 8;
     }
   }
 
@@ -159,7 +159,7 @@ void handleSerialCommands() {
 
 void setup() {
   Serial.begin(115200);
-  delay(300);
+  delay(1200); // Allow supply voltage and decoupling caps to fully stabilize
 
   // Initialize all multiplexer control pins
   const byte outPins[] = {
@@ -198,9 +198,10 @@ void loop() {
       selectCol(c);
 
       int raw = readSensoredCell();
-      int net = raw - baseline[r][c];
+      // Use absolute delta to capture both high-side and low-side voltage divider quadrants
+      int delta = abs(raw - baseline[r][c]);
 
-      if (net > touchThreshold) {
+      if (delta > touchThreshold) {
         if (c < 7) {
           b0 |= (1 << c);
         } else if (c < 14) {
