@@ -71,7 +71,6 @@
             <li><a href="#services">Services</a></li>
             {% if user.is_authenticated %}
             <li><a href="/home">Dashboard</a></li>
-            <li><a href="{% url 'start_visualization' %}">Live Mat Cockpit</a></li>
             <li><a href="/logout">Logout</a></li>
             {% else %}
             <li><a href="/login">Login</a></li>

@@ -38,56 +38,59 @@ def pick_port():
 http_session = requests.Session()
 
 
-def process_pressure_data(packet, last_touch_time, now):
-    """
-    Unpack 60-byte binary packet into 20x20 boolean matrix (7-bit clean).
-    Each row has 3 bytes:
-      Byte 0: cols 0..6  (Bits 0..6, Values: 0..127)
-      Byte 1: cols 7..13 (Bits 0..6, Values: 0..127)
-      Byte 2: cols 14..19 (Bits 0..5, Values: 0..63)
-
-    Records exact timestamp when each sensor cell was touched.
-    """
+def unpack_frame(packet):
+    mat = np.zeros((20, 20), dtype=int)
     for row in range(20):
-        row_offset = row * 3
-        if row_offset + 2 >= len(packet):
+        offset = row * 3
+        if offset + 2 >= len(packet):
             break
-        b0 = packet[row_offset]
-        b1 = packet[row_offset + 1]
-        b2 = packet[row_offset + 2]
-
+        b0 = packet[offset]
+        b1 = packet[offset + 1]
+        b2 = packet[offset + 2]
         for bit in range(7):
             if (b0 >> bit) & 0x01:
-                last_touch_time[row, bit] = now
+                mat[row, bit] = 1
             if (b1 >> bit) & 0x01:
-                last_touch_time[row, 7 + bit] = now
+                mat[row, 7 + bit] = 1
         for bit in range(6):
             if (b2 >> bit) & 0x01:
-                last_touch_time[row, 14 + bit] = now
+                mat[row, 14 + bit] = 1
+    return mat
 
 
-def update_pressure_data(now, last_touch_time, pressure_data):
+def filter_noise_and_compute_pressure(raw_mat):
     """
-    Time-based physiological persistence model:
-      - 0 to 400ms: Peak pressure (100.0) - solid, reliable foot contact
-      - 400ms to 900ms: Smooth thermal fade-out (100.0 -> 0.0)
-      - > 900ms: Fully released (0.0)
-    This guarantees footprints and gait remain clearly visible and continuous,
-    completely immune to serial buffer draining or frame stutter.
+    Filter electrical noise:
+    - Reject isolated 1-cell glitches unless adjacent to another active cell.
+    - When 0 cells are active, return pure zero matrix.
     """
+    total_active = np.count_nonzero(raw_mat)
+    if total_active == 0:
+        return np.zeros((20, 20), dtype=float), 0
+
+    clean_mat = np.zeros((20, 20), dtype=float)
+    y_idx, x_idx = np.indices((20, 20))
+
+    if total_active == 1:
+        # Isolated 1-point touch is accepted only if pressure is sustained (or in ultra-sensitive feather mode)
+        # To avoid single-cycle ADC noise, we pass it with low weight
+        clean_mat = raw_mat.astype(float) * 100.0
+        return clean_mat, 1
+
     for r in range(20):
         for c in range(20):
-            t_last = last_touch_time[r, c]
-            if t_last <= 0.0:
-                pressure_data[r, c] = 0.0
-                continue
-            age = now - t_last
-            if age < 0.40:
-                pressure_data[r, c] = 100.0
-            elif age < 0.90:
-                pressure_data[r, c] = 100.0 * (1.0 - (age - 0.40) / 0.50)
-            else:
-                pressure_data[r, c] = 0.0
+            if raw_mat[r, c]:
+                # Check for neighbor support
+                r_min, r_max = max(0, r - 1), min(19, r + 1)
+                c_min, c_max = max(0, c - 1), min(19, c + 1)
+                neighbors = np.sum(raw_mat[r_min:r_max + 1, c_min:c_max + 1])
+                if neighbors >= 2 or total_active >= 3:
+                    clean_mat[r, c] = 100.0
+                else:
+                    clean_mat[r, c] = 80.0
+
+    active_count = int(np.count_nonzero(clean_mat > 0))
+    return clean_mat, active_count
 
 
 def calculate_cop(pressure_data):
@@ -129,33 +132,31 @@ def main():
         print(f"Failed to open port {port} after 6 attempts: {last_err}")
         sys.exit(1)
 
-    # Set high-sensitivity threshold (15 = responsive touch, above noise floor <= 10)
+    # Automatically Zero Calibrate baseline on startup and set recommended sensitivity
     try:
-        time.sleep(0.2)
-        ser.write(b't15\n')
+        time.sleep(0.3)
+        ser.write(b'c\n')  # Zero baseline across all 400 cells
+        ser.flush()
+        time.sleep(0.8)
+        ser.write(b't50\n')  # Default Recommended threshold
         ser.flush()
         time.sleep(0.1)
         ser.reset_input_buffer()
-        print("Set mat sensitivity threshold to 15 (responsive touch).")
+        print("Initialized mat baseline (Zeroed) & set recommended sensitivity (50).")
     except Exception as ie:
         print(f"Init warning: {ie}")
 
     pressure_data = np.zeros((20, 20), dtype=float)
-    last_touch_time = np.zeros((20, 20), dtype=float)
     frame_url = f"{SERVER_URL}/api/game/{patient_id}/frame/"
     last_post = 0.0
     buffer = bytearray()
-    cmd_file = Path(__file__).parent / f"cmd_{patient_id}.txt"
     err_count = 0
-
-    last_valid_cop = None
-    last_cop_time = 0.0
 
     print(f"Connected! Streaming live readings to {frame_url}. Press Ctrl+C to stop.")
 
     try:
         while True:
-            # Check for dynamic hardware commands (e.g. 'c' for recalibrate, 't15' for threshold)
+            # Check for dynamic hardware commands from UI
             cmd_files = list(Path(__file__).parent.glob("cmd_*.txt"))
             for cf in cmd_files:
                 try:
@@ -164,6 +165,8 @@ def main():
                         ser.write((cmd_txt + "\n").encode())
                         ser.flush()
                         print(f"Dispatched hardware command from {cf.name} to ESP32: '{cmd_txt}'")
+                        if cmd_txt.startswith('c'):
+                            pressure_data.fill(0.0)
                     cf.unlink(missing_ok=True)
                 except Exception as ce:
                     print(f"Command error on {cf.name}: {ce}")
@@ -201,14 +204,15 @@ def main():
                 buffer.extend(chunk)
 
             now = time.time()
+            latest_raw_mat = None
 
             # Process all complete 62-byte frames in buffer (0xFF + 60 data bytes + 0xFE)
             while len(buffer) >= 62:
                 if buffer[0] == 0xFF:
                     if buffer[61] == 0xFE:
-                        # Valid frame found!
+                        # Valid frame found
                         packet = buffer[1:61]
-                        process_pressure_data(packet, last_touch_time, now)
+                        latest_raw_mat = unpack_frame(packet)
                         del buffer[:62]
                     else:
                         try:
@@ -225,17 +229,17 @@ def main():
                         buffer.clear()
                         break
 
-            if now - last_post >= POST_INTERVAL:
-                # Update continuous time-based pressure decay
-                update_pressure_data(now, last_touch_time, pressure_data)
+            if latest_raw_mat is not None:
+                pressure_data, active_count = filter_noise_and_compute_pressure(latest_raw_mat)
 
-                cop = calculate_cop(pressure_data)
-                active_count = int(np.count_nonzero(pressure_data >= 15.0))
+            if now - last_post >= POST_INTERVAL:
+                active_count = int(np.count_nonzero(pressure_data > 0))
+                cop = calculate_cop(pressure_data) if active_count > 0 else None
                 total_pressure = float(np.sum(pressure_data))
 
-                # Generate 20-integer bitmask representation for backward compatibility
+                # Generate 20-integer bitmask representation
                 matrix_bitmask = [
-                    int(sum((1 << c) for c in range(20) if pressure_data[r, c] >= 15.0))
+                    int(sum((1 << c) for c in range(20) if pressure_data[r, c] > 0))
                     for r in range(20)
                 ]
 
@@ -247,19 +251,13 @@ def main():
                 if active_count > 0:
                     main.nonzero_frames += 1
 
-                if now - main.last_log_t >= 2.0:
+                if now - main.last_log_t >= 3.0:
                     print(f"Bridge Telemetry: {main.total_frames} frames ({main.nonzero_frames} with touch), active_count={active_count}, buf_len={len(buffer)}")
                     main.last_log_t = now
 
                 if cop and active_count > 0:
                     cop_x, cop_y, _ = cop
-                    last_valid_cop = (cop_x, cop_y)
-                    last_cop_time = now
                     is_touching = True
-                elif last_valid_cop and (now - last_cop_time < 0.65):
-                    # Natural stride continuity: hold last position briefly while shifting weight
-                    cop_x, cop_y = last_valid_cop
-                    is_touching = (active_count > 0)
                 else:
                     cop_x, cop_y = None, None
                     is_touching = False

@@ -430,11 +430,19 @@
             </button>
             <label for="mat-sensitivity-select" style="margin-left: 8px; font-weight: 600; font-size: 13px;">⚡ Sensitivity:</label>
             <select id="mat-sensitivity-select" style="padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); background: #1e1b4b; color: #ffcf3f; font-weight: 700; font-size: 13px;" title="Adjust touch sensitivity threshold">
-                <option value="12">Ultra High (12) - Feather Touch</option>
-                <option value="18" selected>High (18) - Recommended</option>
-                <option value="28">Medium (28) - Normal Gait</option>
-                <option value="40">Firm (40) - Heavy Steps</option>
+                <option value="35">Ultra High (35) - Feather Touch</option>
+                <option value="50" selected>High (50) - Recommended</option>
+                <option value="75">Medium (75) - Normal Gait</option>
+                <option value="110">Firm (110) - Heavy Steps</option>
             </select>
+            <div style="display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; font-size: 12px; color: #cfc4ff;">
+                <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 3px;" title="Mirror Left / Right orientation">
+                    <input type="checkbox" id="flip-x-check"> Flip X
+                </label>
+                <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 3px;" title="Invert Front / Back orientation">
+                    <input type="checkbox" id="flip-y-check"> Flip Y
+                </label>
+            </div>
         </div>
     </header>
 
@@ -563,6 +571,26 @@ let pollTimer = null;
 let animFrame = null;
 let manualControl = { up: false, down: false, left: false, right: false };
 let dragging = false;
+let flipX = localStorage.getItem('mat_flip_x') === 'true';
+let flipY = localStorage.getItem('mat_flip_y') === 'true';
+
+// Sync flip checkboxes
+const flipXCheck = document.getElementById('flip-x-check');
+const flipYCheck = document.getElementById('flip-y-check');
+if (flipXCheck) {
+    flipXCheck.checked = flipX;
+    flipXCheck.addEventListener('change', (e) => {
+        flipX = e.target.checked;
+        localStorage.setItem('mat_flip_x', flipX);
+    });
+}
+if (flipYCheck) {
+    flipYCheck.checked = flipY;
+    flipYCheck.addEventListener('change', (e) => {
+        flipY = e.target.checked;
+        localStorage.setItem('mat_flip_y', flipY);
+    });
+}
 
 // Real-time Pressure Visualization variables
 let currentMatrix = new Array(20).fill(0); // 20 row bitmasks
@@ -604,8 +632,6 @@ function startGame() {
     score = 0;
     pathData = [];
     starEvents = [];
-    playerPos = { x: 10, y: 10 };
-    displayPos = { x: 10, y: 10 };
     startTime = performance.now();
     lastStarTime = startTime;
     state = 'playing';
@@ -704,23 +730,33 @@ function drawGame() {
         gctx.restore();
     });
 
+    const isUserControlling = (liveCop !== null) || manualControl.up || manualControl.down || manualControl.left || manualControl.right || dragging;
+
     // Player position (Foot glow)
-    const px = gridToPx(displayPos.x);
-    const py = gridToPx(displayPos.y);
+    if (isUserControlling || state === 'idle') {
+        const px = gridToPx(displayPos.x);
+        const py = gridToPx(displayPos.y);
 
-    const grad = gctx.createRadialGradient(px, py, 2, px, py, cellPx * 1.6);
-    grad.addColorStop(0, 'rgba(255,255,255,0.95)');
-    grad.addColorStop(0.35, 'rgba(120,220,255,0.85)');
-    grad.addColorStop(1, 'rgba(120,220,255,0)');
-    gctx.fillStyle = grad;
-    gctx.beginPath();
-    gctx.arc(px, py, cellPx * 1.6, 0, Math.PI * 2);
-    gctx.fill();
+        const grad = gctx.createRadialGradient(px, py, 2, px, py, cellPx * 1.6);
+        grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+        grad.addColorStop(0.35, 'rgba(120,220,255,0.85)');
+        grad.addColorStop(1, 'rgba(120,220,255,0)');
+        gctx.fillStyle = grad;
+        gctx.beginPath();
+        gctx.arc(px, py, cellPx * 1.6, 0, Math.PI * 2);
+        gctx.fill();
 
-    gctx.fillStyle = '#fff';
-    gctx.beginPath();
-    gctx.arc(px, py, 7, 0, Math.PI * 2);
-    gctx.fill();
+        gctx.fillStyle = '#fff';
+        gctx.beginPath();
+        gctx.arc(px, py, 7, 0, Math.PI * 2);
+        gctx.fill();
+    } else if (state === 'playing') {
+        // Subtle prompt when waiting for patient to step on mat
+        gctx.fillStyle = 'rgba(255, 207, 63, 0.85)';
+        gctx.font = '600 16px sans-serif';
+        gctx.textAlign = 'center';
+        gctx.fillText('👣 Step onto the mat to start moving & collecting stars!', gameCanvas.width / 2, gameCanvas.height - 24);
+    }
 }
 
 // -------------------------------------------------------------
@@ -753,12 +789,14 @@ function drawPressureHeatmap() {
 
     // Draw 20x20 pressure cells with continuous medical-grade thermal colormap
     for (let r = 0; r < GRID_SIZE; r++) {
-        const rowMask = currentMatrix[r] || 0;
-        const rowMap = (currentPressureMap && currentPressureMap[r]) ? currentPressureMap[r] : null;
+        const srcR = flipY ? (GRID_SIZE - 1 - r) : r;
+        const rowMask = currentMatrix[srcR] || 0;
+        const rowMap = (currentPressureMap && currentPressureMap[srcR]) ? currentPressureMap[srcR] : null;
 
         for (let c = 0; c < GRID_SIZE; c++) {
-            const isBitActive = (rowMask >> c) & 1;
-            const pVal = rowMap ? (rowMap[c] || 0) : 0;
+            const srcC = flipX ? (GRID_SIZE - 1 - c) : c;
+            const isBitActive = (rowMask >> srcC) & 1;
+            const pVal = rowMap ? (rowMap[srcC] || 0) : 0;
             const effectivePressure = Math.max(pVal, isBitActive ? 85 : 0);
 
             const x = c * cellPx;
@@ -854,24 +892,27 @@ function drawPressureHeatmap() {
 // MAIN ANIMATION LOOP
 // -------------------------------------------------------------
 function loop() {
-    // Smooth target movement
-    displayPos.x += (playerPos.x - displayPos.x) * 0.28;
-    displayPos.y += (playerPos.y - displayPos.y) * 0.28;
+    const isUserControlling = (liveCop !== null) || manualControl.up || manualControl.down || manualControl.left || manualControl.right || dragging;
+
+    // Smooth target movement when actively controlled
+    if (isUserControlling) {
+        displayPos.x += (playerPos.x - displayPos.x) * 0.32;
+        displayPos.y += (playerPos.y - displayPos.y) * 0.32;
+    }
 
     if (state === 'playing') {
-        // Fallback manual controls when mat is not physically connected or no active touch
-        if (!connected || !liveCop) {
-            const speed = 0.18;
-            if (manualControl.up) playerPos.y -= speed;
-            if (manualControl.down) playerPos.y += speed;
-            if (manualControl.left) playerPos.x -= speed;
-            if (manualControl.right) playerPos.x += speed;
-            playerPos.x = Math.max(0, Math.min(GRID_SIZE - 1, playerPos.x));
-            playerPos.y = Math.max(0, Math.min(GRID_SIZE - 1, playerPos.y));
-        }
+        if (manualControl.up) playerPos.y -= 0.18;
+        if (manualControl.down) playerPos.y += 0.18;
+        if (manualControl.left) playerPos.x -= 0.18;
+        if (manualControl.right) playerPos.x += 0.18;
+        playerPos.x = Math.max(0, Math.min(GRID_SIZE - 1, playerPos.x));
+        playerPos.y = Math.max(0, Math.min(GRID_SIZE - 1, playerPos.y));
 
-        pathData.push({ x: playerPos.x, y: playerPos.y, t: (performance.now() - startTime) / 1000 });
-        checkCollisions();
+        // ONLY record path and check star collisions when the patient is ACTIVELY touching the mat or controlling
+        if (isUserControlling) {
+            pathData.push({ x: playerPos.x, y: playerPos.y, t: (performance.now() - startTime) / 1000 });
+            checkCollisions();
+        }
         updateHud();
 
         const cfg = difficultyConfig[difficulty];
@@ -902,36 +943,49 @@ async function pollFrame() {
         if (data.connected) {
             connected = true;
             const portName = data.port ? ` (${data.port})` : '';
-            const hasTouch = data.touching || (data.active_count && data.active_count > 0);
+            const hasTouch = data.touching && (data.active_count && data.active_count > 0);
 
             if (hasTouch) {
                 const pVal = data.total_pressure ? ` — Total Load: ${Math.round(data.total_pressure)}` : '';
-                badge.textContent = `🟢 Mat Connected${portName}${pVal} (Active Touch)`;
+                badge.textContent = `🟢 Mat Connected${portName}${pVal} (Active Touch: ${data.active_count} cells)`;
                 badge.className = 'connected';
             } else {
                 badge.textContent = `🟢 Mat Connected${portName} — Ready (Stand on mat)`;
                 badge.className = 'connected';
             }
 
-            // Sync Game Coordinates & Center of Pressure
-            if (typeof data.x === 'number' && typeof data.y === 'number') {
-                playerPos.x = data.x;
-                playerPos.y = data.y;
-                liveCop = { x: data.x, y: data.y };
+            // Sync Game Coordinates & Center of Pressure ONLY when touching
+            if (hasTouch && typeof data.x === 'number' && typeof data.y === 'number') {
+                let mappedX = data.x;
+                let mappedY = data.y;
+                if (flipX) mappedX = (GRID_SIZE - 1) - mappedX;
+                if (flipY) mappedY = (GRID_SIZE - 1) - mappedY;
 
-                if (copHistory.length === 0 || Math.hypot(copHistory[copHistory.length - 1].x - data.x, copHistory[copHistory.length - 1].y - data.y) > 0.1) {
-                    copHistory.push({ x: data.x, y: data.y });
+                playerPos.x = mappedX;
+                playerPos.y = mappedY;
+                liveCop = { x: mappedX, y: mappedY };
+
+                if (copHistory.length === 0 || Math.hypot(copHistory[copHistory.length - 1].x - mappedX, copHistory[copHistory.length - 1].y - mappedY) > 0.1) {
+                    copHistory.push({ x: mappedX, y: mappedY });
                     if (copHistory.length > 35) copHistory.shift();
                 }
-            } else if (!hasTouch) {
+            } else {
                 liveCop = null;
             }
 
             // Sync Pressure Visualization Telemetry
-            currentTotalPressure = data.total_pressure || 0;
-            currentActiveCount = data.active_count || 0;
-            currentLeftPct = data.left_pct !== undefined ? data.left_pct : 50.0;
-            currentRightPct = data.right_pct !== undefined ? data.right_pct : 50.0;
+            currentTotalPressure = hasTouch ? (data.total_pressure || 0) : 0;
+            currentActiveCount = hasTouch ? (data.active_count || 0) : 0;
+            let lPct = data.left_pct !== undefined ? data.left_pct : 50.0;
+            let rPct = data.right_pct !== undefined ? data.right_pct : 50.0;
+            if (flipX) {
+                const temp = lPct;
+                lPct = rPct;
+                rPct = temp;
+            }
+            currentLeftPct = lPct;
+            currentRightPct = rPct;
+
             if (data.matrix) currentMatrix = data.matrix;
             if (data.pressure_map && data.pressure_map.length === 20) currentPressureMap = data.pressure_map;
 
@@ -955,12 +1009,14 @@ async function pollFrame() {
             connected = false;
             badge.textContent = '⚠️ Mat not connected (select port above or use arrow keys)';
             badge.className = 'disconnected';
+            liveCop = null;
         }
     } catch (e) {
         connected = false;
         const badge = document.getElementById('connection-badge');
         badge.textContent = '⚠️ Mat not connected (select port above or use arrow keys)';
         badge.className = 'disconnected';
+        liveCop = null;
     } finally {
         isPolling = false;
     }
@@ -988,12 +1044,14 @@ for (let i = 0; i < 400; i++) {
 function updateSensorGrid() {
     if (matrixInspector.style.display !== 'block') return;
     for (let r = 0; r < 20; r++) {
-        const rowMask = currentMatrix[r] || 0;
-        const rowMap = (currentPressureMap && currentPressureMap[r]) ? currentPressureMap[r] : null;
+        const srcR = flipY ? (19 - r) : r;
+        const rowMask = currentMatrix[srcR] || 0;
+        const rowMap = (currentPressureMap && currentPressureMap[srcR]) ? currentPressureMap[srcR] : null;
         for (let c = 0; c < 20; c++) {
+            const srcC = flipX ? (19 - c) : c;
             const idx = r * 20 + c;
-            const pVal = rowMap ? (rowMap[c] || 0) : 0;
-            const isTouched = ((rowMask >> c) & 1) || (pVal > 10);
+            const pVal = rowMap ? (rowMap[srcC] || 0) : 0;
+            const isTouched = ((rowMask >> srcC) & 1) || (pVal > 10);
             if (isTouched) {
                 cellElements[idx].classList.add('active');
             } else {
@@ -1023,23 +1081,25 @@ if (recalibrateZeroBtn) {
         const badge = document.getElementById('connection-badge');
         recalibrateZeroBtn.disabled = true;
 
-        badge.textContent = '⚠️ STEP OFF MAT: Please remove feet/weight from mat! Calibrating in 2s...';
+        badge.textContent = '⚠️ STEP OFF MAT: Please remove feet/weight from mat! Calibrating in 1s...';
         badge.className = 'disconnected';
 
         setTimeout(async () => {
             badge.textContent = '🎯 Calibrating 400 sensors baseline... Keep mat empty...';
             try {
                 await fetch(`/api/game/${patientId}/recalibrate/`, { method: 'POST' });
+                copHistory = [];
+                liveCop = null;
                 setTimeout(() => {
                     badge.textContent = '✅ Mat Baseline Zeroed! Step onto the mat now to play!';
                     badge.className = 'connected';
                     recalibrateZeroBtn.disabled = false;
-                }, 1200);
+                }, 1000);
             } catch (e) {
                 console.error('Recalibrate error:', e);
                 recalibrateZeroBtn.disabled = false;
             }
-        }, 1500);
+        }, 1200);
     });
 }
 
@@ -1049,13 +1109,16 @@ if (matSensitivitySelect) {
     matSensitivitySelect.addEventListener('change', async (e) => {
         const th = parseInt(e.target.value);
         const badge = document.getElementById('connection-badge');
+        const optText = e.target.options[e.target.selectedIndex].text;
         try {
             await fetch(`/api/game/${patientId}/threshold/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ threshold: th })
             });
-            badge.textContent = `⚡ Sensitivity updated to threshold ${th}!`;
+            copHistory = [];
+            liveCop = null;
+            badge.textContent = `⚡ Sensitivity updated: ${optText}!`;
             badge.className = 'connected';
             setTimeout(() => {
                 badge.textContent = '🟢 Mat Connected — Ready (Stand on mat)';
