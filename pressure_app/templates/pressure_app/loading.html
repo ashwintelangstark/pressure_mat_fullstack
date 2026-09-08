@@ -2,11 +2,36 @@
 <html>
 <head>
   <title>Starting Visualization...</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body {display:flex;justify-content:center;align-items:center;height:100vh;font-family:Arial;background:#f5f5f5;}
-    .loader {width:60px;height:60px;border:8px solid #eee;border-top:8px solid #1977cc;border-radius:50%;animation:spin 1s linear infinite;}
-    @keyframes spin {0% {transform:rotate(0deg);}100% {transform:rotate(360deg);}}
-    p {text-align:center;margin-top:15px;}
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: 'Manrope', sans-serif;
+      background: #FAF6F0;
+      color: #261705;
+    }
+    .loader {
+      width: 60px;
+      height: 60px;
+      border: 6px solid #FEF3C7;
+      border-top: 6px solid #F59E0B;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+      margin: 0 auto;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    p {
+      text-align: center;
+      margin-top: 20px;
+      font-weight: 600;
+      font-size: 16px;
+      color: #78350F;
+    }
   </style>
 </head>
 <body>

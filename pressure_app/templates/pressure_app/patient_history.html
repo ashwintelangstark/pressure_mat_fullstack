@@ -1,6 +1,8 @@
 {% block content %}
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
 <div class="container">
-    <h2 class="patient-title">Patient History: {{ patient.name }} ({{ patient.patient_id }})</h2>
+    <h2 class="patient-title">Patient History: {{ patient.name }} (ID: {{ patient.patient_id }})</h2>
 
     <div class="dashboard-layout">
 
@@ -8,36 +10,34 @@
         <div class="left-panel">
 
             <div class="info-card">
-                <h3>Patient Details</h3>
+                <h3><i class="fas fa-user-circle" style="color: #F59E0B; margin-right: 8px;"></i> Patient Details</h3>
 
                 <p><strong>Patient ID:</strong> {{ patient.patient_id }}</p>
                 <p><strong>Name:</strong> {{ patient.name }}</p>
-
                 <p><strong>Total Sessions:</strong> {{ videos.count }}</p>
 
-                <div style="margin-top: 15px; margin-bottom: 12px; background: rgba(76, 175, 80, 0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(76, 175, 80, 0.3);">
-                    <label for="mat-port-select" style="font-weight: 600; font-size: 13px; color: #2e7d32; display: block; margin-bottom: 6px;">
+                <div class="port-selection-box">
+                    <label for="mat-port-select">
                         🔌 Pressure Mat COM Port:
                     </label>
-                    <div style="display: flex; gap: 6px; align-items: center;">
-                        <select id="mat-port-select" style="flex: 1; padding: 7px 10px; border-radius: 6px; border: 1px solid #4caf50; font-size: 13px; background: white; color: #2e7d32; font-weight: 500;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select id="mat-port-select">
                             <option value="auto">⚡ Auto-detect Port</option>
                         </select>
-                        <button id="refresh-ports-btn" type="button" title="Refresh COM Ports" style="padding: 7px 10px; background: #4caf50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: background 0.2s;">
+                        <button id="refresh-ports-btn" type="button" title="Refresh COM Ports">
                             🔄
                         </button>
                     </div>
-                    <div id="port-status-msg" style="font-size: 11px; margin-top: 4px; color: #388e3c; display: none;"></div>
+                    <div id="port-status-msg"></div>
                 </div>
 
-                <a id="play-game-btn" href="{% url 'game_page' patient.patient_id %}"
-                   style="display:block; text-align:center; margin-top:12px; padding:12px 18px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; border-radius:10px; text-decoration:none; font-weight:700; font-size:14px; box-shadow:0 4px 12px rgba(99,102,241,0.35); transition: transform 0.2s;">
+                <a id="play-game-btn" href="{% url 'game_page' patient.patient_id %}" class="btn-play-cockpit">
                    🎮 Launch Live Dual Cockpit (Game + Mat Heatmap)
                 </a>
             </div>
 
             <div class="weekly-card">
-                <h3>📋 Weekly Clinical Observation</h3>
+                <h3><i class="fas fa-clipboard-list" style="color: #F59E0B; margin-right: 8px;"></i> Weekly Clinical Observation</h3>
 
                 <div>
                     {{ observation|safe }}
@@ -45,13 +45,13 @@
             </div>
 
             <div class="weekly-card">
-                <h3>⭐ Game Engagement (Collect the Stars)</h3>
+                <h3><i class="fas fa-star" style="color: #F59E0B; margin-right: 8px;"></i> Game Engagement (Collect the Stars)</h3>
                 {% if game_sessions %}
                 <p><strong>Sessions played:</strong> {{ game_sessions.count }}</p>
                 <ul class="observation-list">
                     {% for gs in game_sessions|slice:":5" %}
                     <li>
-                        {{ gs.started_at|date:"M d, Y H:i" }} —
+                        <strong>{{ gs.started_at|date:"M d, Y H:i" }}</strong> —
                         {{ gs.stars_collected }}/{{ gs.target_count }} stars,
                         score {{ gs.score }}, {{ gs.duration_seconds|floatformat:0 }}s
                         ({{ gs.difficulty }})
@@ -68,27 +68,28 @@
         <!-- RIGHT PANEL -->
         <div class="right-panel">
 
-            <h3 class="history-title">Session History</h3>
+            <h3 class="history-title">Recorded Sessions</h3>
 
             <div class="session-list">
 
                 {% for video in videos %}
                 <div class="session-card">
 
-                    <h4>{{ video.timestamp|date:"M d, Y H:i" }}</h4>
+                    <h4><i class="fas fa-video" style="color: #F59E0B; margin-right: 6px;"></i> {{ video.timestamp|date:"M d, Y H:i" }}</h4>
 
                     <video controls>
                         <source src="{{ video.video_file.url }}" type="video/mp4">
                     </video>
 
                     <div class="session-meta">
-                        {{ video.timestamp|timesince }} ago
+                        🕒 Recorded {{ video.timestamp|timesince }} ago
                     </div>
 
                 </div>
 
                 {% empty %}
                 <div class="no-sessions">
+                    <i class="fas fa-folder-open" style="font-size: 2rem; color: #FCD34D; margin-bottom: 12px; display: block;"></i>
                     No recorded sessions found.
                 </div>
                 {% endfor %}
@@ -99,309 +100,263 @@
 
     </div>
 
+    <div style="margin-top: 30px; text-align: center;">
+        <a href="{% url 'home' %}" class="back-btn">
+            ⬅️ Back to Patient List
+        </a>
+    </div>
+
 </div>
 
-<!-- Video Modal
-<div id="videoModal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <video id="patientVideo" controls>
-            <source src="" type="video/mp4">
-            Your browser does not support HTML5 video.
-        </video>
-        <div id="videoStatus"></div>
-    </div>
-</div> -->
-
-<a href="{% url 'home' %}" class="back-btn">
-    ⬅️ Back to Patient List
-</a>
-
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
     body {
-        font-family: 'Segoe UI', sans-serif;
-        background-color: #f0f2f5;
+        font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+        background-color: #FAF6F0;
+        background-image: radial-gradient(circle at 10% 10%, rgba(254, 243, 199, 0.6) 0%, rgba(250, 246, 240, 1) 90%);
+        color: #261705;
+        margin: 0;
+        padding: 0;
     }
 
     .container {
-        padding: 40px 80px;
+        width: 85%;
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 30px 0 60px;
     }
 
     .patient-title {
         text-align: center;
-        font-size: 26px;
-        margin-bottom: 30px;
-        color: #333;
+        font-size: 28px;
+        font-weight: 800;
+        margin-bottom: 35px;
+        color: #261705;
+        letter-spacing: -0.5px;
     }
 
-    .improvement-box{
-        background:#e8f5e9;
-        border-left:5px solid #4caf50;
-        padding:15px;
-        border-radius:8px;
-        margin-bottom:20px;
-        font-size:15px;
-        color:#2e7d32;
+    .dashboard-layout {
+        display: flex;
+        gap: 30px;
+        align-items: flex-start;
+    }
+
+    .left-panel {
+        width: 32%;
+        position: sticky;
+        top: 20px;
+    }
+
+    .right-panel {
+        width: 68%;
+    }
+
+    .info-card,
+    .weekly-card {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 30px -5px rgba(245, 158, 11, 0.12), 0 4px 12px rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .info-card h3,
+    .weekly-card h3 {
+        color: #D97706;
+        margin-top: 0;
+        margin-bottom: 18px;
+        font-weight: 800;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+    }
+
+    .info-card p,
+    .weekly-card p {
+        color: #261705;
+        font-size: 15px;
+        line-height: 1.7;
+        margin: 10px 0;
+    }
+
+    .port-selection-box {
+        margin-top: 18px;
+        margin-bottom: 16px;
+        background: #FEF3C7;
+        padding: 16px;
+        border-radius: 14px;
+        border: 1px solid #FCD34D;
+    }
+
+    .port-selection-box label {
+        font-weight: 700;
+        font-size: 13px;
+        color: #78350F;
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    #mat-port-select {
+        flex: 1;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #FCD34D;
+        font-size: 13px;
+        font-family: 'Manrope', sans-serif;
+        background: white;
+        color: #261705;
+        font-weight: 600;
+    }
+
+    #refresh-ports-btn {
+        padding: 10px 14px;
+        background: linear-gradient(135deg, #F59E0B, #D97706);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
+    }
+
+    #port-status-msg {
+        font-size: 12px;
+        margin-top: 6px;
+        color: #D97706;
+        font-weight: 600;
+        display: none;
+    }
+
+    .btn-play-cockpit {
+        display: block;
+        text-align: center;
+        margin-top: 16px;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, #F59E0B, #D97706);
+        color: #ffffff;
+        border-radius: 14px;
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 14px;
+        box-shadow: 0 6px 18px rgba(245, 158, 11, 0.35);
+        transition: all 0.25s ease;
+    }
+
+    .btn-play-cockpit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 22px rgba(245, 158, 11, 0.45);
+    }
+
+    .history-title {
+        margin-top: 0;
+        margin-bottom: 24px;
+        color: #261705;
+        font-size: 22px;
+        font-weight: 800;
+    }
+
+    .right-panel .session-list {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
     }
 
     .session-card {
-        width: 48%;
         background: #ffffff;
-        border-radius: 10px;
-        padding: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        box-sizing: border-box;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 10px 30px -5px rgba(245, 158, 11, 0.12), 0 4px 12px rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    @media (max-width:768px){
-        .session-card{
-            width:100%;
-        }
+    .session-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 18px 35px -5px rgba(245, 158, 11, 0.2), 0 8px 20px rgba(0,0,0,0.04);
     }
 
-    @media screen and (max-width: 768px) {
-        .session-card {
-            flex: 0 0 100%;            /* one per row on mobile */
-        }
-    }
-
-    .session-card h3 {
-        margin-bottom: 10px;
-        font-size: 18px;
-        color: #222;
-    }
-
-    .play-btn {
-        background-color: #007BFF;
-        color: #fff;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 6px;
+    .session-card h4 {
+        margin-top: 0;
+        margin-bottom: 14px;
         font-size: 16px;
-        cursor: pointer;
-        transition: background 0.3s ease;
+        font-weight: 700;
+        color: #261705;
     }
 
-    .play-btn:hover {
-        background-color: #0056b3;
+    .session-card video {
+        width: 100%;
+        height: 240px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 1px solid #FEF3C7;
     }
 
     .session-meta {
-        margin-top: 15px;
-        font-size: 14px;
-        color: #555;
-    }
-
-    .observation-box{
-        margin-top:10px;
-        padding:10px;
-        background:#f0f8ff;
-        border-left:4px solid #2196f3;
-        border-radius:6px;
-        font-size:14px;
-        color:#333;
-    }
-
-    .session-meta .notes {
-        background: #f8f8f8;
-        padding: 10px;
-        border-left: 4px solid #007BFF;
-        border-radius: 5px;
-        margin-top: 10px;
-        font-style: italic;
+        margin-top: 14px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #78350F;
     }
 
     .no-sessions {
+        grid-column: 1 / -1;
         text-align: center;
-        padding: 40px;
-        background-color: #fafafa;
-        border: 1px dashed #ccc;
-        border-radius: 10px;
-        margin-top: 30px;
-        color: #777;
-    }
-
-    /* Modal */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.85);
-        overflow: auto;
-    }
-
-    .modal-content {
-        margin: 100px auto;
-        padding: 20px;
-        background: #111;
-        width: 80%;
-        max-width: 720px;
-        border-radius: 10px;
-        text-align: center;
-    }
-
-    .close {
-        color: #fff;
-        float: right;
-        font-size: 28px;
-        cursor: pointer;
-        margin-top: -10px;
-    }
-
-    #patientVideo {
-        width: 100%;
-        border-radius: 8px;
-    }
-
-    #videoStatus {
-        margin-top: 15px;
-        font-size: 14px;
-        color: white;
+        padding: 45px;
+        background: #ffffff;
+        border-radius: 20px;
+        border: 2px dashed #FCD34D;
+        color: #78350F;
+        font-weight: 600;
     }
 
     .back-btn {
         display: inline-block;
-        margin: 30px;
+        padding: 12px 24px;
+        background: #FEF3C7;
+        color: #78350F;
+        border: 1px solid #FCD34D;
+        border-radius: 14px;
         text-decoration: none;
-        color: #007BFF;
-        font-weight: 600;
+        font-weight: 700;
+        font-size: 14px;
+        transition: all 0.25s ease;
     }
 
     .back-btn:hover {
-        text-decoration: underline;
+        background: #FCD34D;
+        color: #261705;
+        transform: translateY(-2px);
+    }
+
+    .observation-list {
+        padding-left: 20px;
+        margin-top: 10px;
+    }
+
+    .observation-list li {
+        color: #261705;
+        margin-bottom: 10px;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    @media (max-width: 992px) {
+        .dashboard-layout {
+            flex-direction: column;
+        }
+        .left-panel, .right-panel {
+            width: 100%;
+        }
     }
 
     @media (max-width: 768px) {
-        .modal-content {
-            width: 95%;
-        }
-
-        .play-btn {
-            width: 100%;
-            margin-top: 10px;
+        .right-panel .session-list {
+            grid-template-columns: 1fr;
         }
     }
-
-    .dashboard-layout{
-        display:flex;
-        gap:25px;
-        align-items:flex-start;
-    }
-
-    .left-panel{
-        width:30%;
-        position:sticky;
-        top:20px;
-    }
-
-    .right-panel{
-        width:70%;
-    }
-
-    .info-card,
-    .weekly-card{
-        background:#e8f5e9;
-        border-left:5px solid #4caf50;
-        padding:20px;
-        border-radius:12px;
-        margin-bottom:20px;
-        box-shadow:0 4px 12px rgba(0,0,0,0.08);
-    }
-
-    .info-card h3,
-    .weekly-card h3{
-        color:#2e7d32;
-        margin-bottom:15px;
-        font-weight:700;
-    }
-
-    .info-card p,
-    .weekly-card p,
-    .info-card li,
-    .weekly-card li{
-        color:#2e7d32;
-        font-size:15px;
-        line-height:1.8;
-    }
-
-    .weekly-card ul{
-        padding-left:20px;
-        margin-top:10px;
-    }
-
-    .history-title{
-        margin-bottom:20px;
-        color:#1870b4;
-    }
-
-    .right-panel .session-list{
-        display:grid;
-        grid-template-columns:repeat(2, 1fr);
-        gap:30px;
-    }
-
-    .right-panel .session-card{
-        width:100%;
-        padding:20px;
-    }
-
-    @media(max-width:992px){
-
-        .dashboard-layout{
-            flex-direction:column;
-        }
-
-        .left-panel,
-        .right-panel{
-            width:100%;
-        }
-    }
-
-    .observation-list{
-        padding-left:20px;
-    }
-
-    .observation-list li{
-        color:#2e7d32;
-        margin-bottom:12px;
-        font-size:15px;
-        line-height:1.7;
-        font-weight:500;
-    }
-
-    .session-list{
-        display:grid;
-        grid-template-columns:repeat(2,1fr);
-        gap:20px;
-    }
-
-    .session-card{
-        width:100%;
-    }
-
-    @media(max-width:768px){
-        .session-list{
-            grid-template-columns:1fr;
-        }
-    }
-
-    @media(max-width:768px){
-        .right-panel .session-list{
-            grid-template-columns:1fr;
-        }
-    }
-
-    .session-card video{
-        width:100%;
-        height:350px;
-        object-fit:cover;
-        border-radius:10px;
-    }
-
 </style>
 
 <script>
