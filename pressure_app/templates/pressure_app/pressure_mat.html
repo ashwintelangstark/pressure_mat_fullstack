@@ -1,0 +1,963 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    {% load static %}
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pressure Mat Analysis - {{ patient.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #07090e;
+            --panel-bg: #0f172a;
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-amber: #f59e0b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 16px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-title .icon-wrap {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+        }
+
+        .header-title h1 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .patient-badge {
+            font-size: 0.85rem;
+            color: var(--accent-amber);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .btn-home {
+            padding: 10px 18px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--panel-border);
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        .btn-home:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 24px;
+            padding: 24px;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+            flex: 1;
+        }
+
+        .viz-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .controls-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            padding: 12px 18px;
+            border-radius: 14px;
+            flex-wrap: wrap;
+        }
+
+        .ctrl-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        select, input[type="text"] {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #f8fafc;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            outline: none;
+        }
+        select:focus, input[type="text"]:focus {
+            border-color: var(--accent-amber);
+        }
+
+        .btn-action {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .btn-primary { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-calib { background: #3b82f6; color: white; }
+        .btn-calib:hover { background: #2563eb; }
+
+        /* Connection Status Banner */
+        .conn-banner {
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+        .conn-banner.disconnected {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+        .conn-banner.connected {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            background: #0c0d12;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas#viz-canvas {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 4 / 3;
+            max-height: 720px;
+            display: block;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+
+        .metric-card {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--panel-border);
+            padding: 14px 18px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .metric-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--accent-amber);
+        }
+
+        .sidebar-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 12px;
+        }
+
+        .rec-btn-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-rec-start {
+            padding: 14px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+        }
+        .btn-rec-stop {
+            padding: 14px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+        }
+
+        .balance-bar-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .balance-bar {
+            height: 16px;
+            background: #1e293b;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+        }
+        .balance-left { background: #3b82f6; height: 100%; transition: width 0.15s ease; }
+        .balance-right { background: #f59e0b; height: 100%; transition: width 0.15s ease; }
+
+        @media (max-width: 1100px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <i class="fas fa-wave-square" style="font-size: 28px; color: #F59E0B; margin-right: 14px;"></i>
+            <div>
+                <h1>Real-Time Medical Pressure Visualizer</h1>
+                <div class="patient-badge"><i class="fas fa-user"></i> Patient: {{ patient.name }} (ID: {{ patient.patient_id }})</div>
+            </div>
+        </div>
+        <a href="{% url 'patient_readings' patient.patient_id %}" class="btn-home"><i class="fas fa-arrow-left"></i> Back to Patient Data</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="viz-card">
+            <div class="controls-toolbar">
+                <div class="ctrl-group">
+                    <label for="port-select"><i class="fas fa-plug"></i> Serial Port:</label>
+                    <select id="port-select">
+                        {% if ports %}
+                            {% for p in ports %}
+                                <option value="{{ p.device }}" {% if p.device == selected_port %}selected{% endif %}>{{ p.device }} ({{ p.description }})</option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="auto">Auto Detect USB</option>
+                        {% endif %}
+                    </select>
+                    <button id="connect-btn" class="btn-action btn-primary"><i class="fas fa-sync"></i> Connect Mat</button>
+                </div>
+
+                <div class="ctrl-group">
+                    <label for="sens-select"><i class="fas fa-sliders-h"></i> Sensitivity:</label>
+                    <select id="sens-select">
+                        <option value="40">Ultra-Sensitive (40) - Lightest Touch</option>
+                        <option value="55" selected>Balanced Zero-Noise (55) - Recommended</option>
+                        <option value="75">Standard Touch / Press (75)</option>
+                        <option value="100">Firm Step / Standing (100)</option>
+                        <option value="150">Heavy Footstep (150)</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-group">
+                    <button id="calib-btn" class="btn-action btn-calib"><i class="fas fa-crosshairs"></i> Zero Calibrate Mat</button>
+                </div>
+            </div>
+
+            <!-- Real-Time Connection Status Banner -->
+            <div id="conn-banner" class="conn-banner disconnected">
+                <i class="fas fa-wifi"></i> <span id="conn-banner-text">Mat Disconnected — Select COM Port and click Connect Mat</span>
+            </div>
+
+            <div class="canvas-container">
+                <canvas id="viz-canvas" width="800" height="600"></canvas>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <label>Active Touch Points</label>
+                    <div class="metric-val" id="active-cells-val">0 / 400</div>
+                </div>
+                <div class="metric-card">
+                    <label>Total Pressure Load</label>
+                    <div class="metric-val" id="total-press-val">0.0 kPa</div>
+                </div>
+                <div class="metric-card">
+                    <label>Bilateral Left / Right Balance</label>
+                    <div class="metric-val" id="balance-text-val">50% / 50%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-card">
+            <div class="section-title"><i class="fas fa-video"></i> Session Recording</div>
+            
+            <div class="balance-bar-wrap">
+                <label>Weight Balance Distribution</label>
+                <div class="balance-bar">
+                    <div class="balance-left" id="bar-left" style="width: 50%;"></div>
+                    <div class="balance-right" id="bar-right" style="width: 50%;"></div>
+                </div>
+            </div>
+
+            <div class="rec-btn-wrap">
+                <button id="start-rec-btn" class="btn-rec-start"><i class="fas fa-circle"></i> Start Recording</button>
+                <button id="stop-rec-btn" class="btn-rec-stop" style="display: none;"><i class="fas fa-square"></i> Stop & Save Session</button>
+            </div>
+
+            <div>
+                <label for="session-notes">Clinician Session Notes:</label>
+                <textarea id="session-notes" rows="5" style="width: 100%; margin-top: 6px; padding: 10px; background: #1e293b; border: 1px solid var(--panel-border); border-radius: 10px; color: white; font-family: inherit; font-size: 13px; outline: none;" placeholder="Enter posture observations, palm/foot pressure analysis, or gait notes..."></textarea>
+            </div>
+
+            <div id="rec-status" style="font-size: 13px; font-weight: 600; color: var(--text-muted); text-align: center;">
+                Status: Mat Idle
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const patientId = "{{ patient.patient_id }}";
+        const vizCanvas = document.getElementById('viz-canvas');
+        const vctx = vizCanvas.getContext('2d');
+        const GRID_SIZE = 20;
+
+        let currentPressureMap = Array.from({ length: GRID_SIZE }, () => new Array(GRID_SIZE).fill(0));
+        let liveCop = null;
+        let copHistory = [];
+        let isRecording = false;
+        let recordedFrames = [];
+        let isMatConnected = false;
+        let lastFrameTimestamp = 0;
+
+        // Offscreen canvas for continuous 60x60 Gaussian upsampling
+        const heatCanvas = document.createElement('canvas');
+        heatCanvas.width = 60;
+        heatCanvas.height = 60;
+        const heatCtx = heatCanvas.getContext('2d', { willReadFrequently: true });
+
+        // Medical-grade thermal colormap (0 to 200 kPa)
+        function getHeatColorRGBA(v) {
+            v = v * 1.10; // 10% gain boost for high-sensitivity thermal visualizer
+            if (v <= 2) return [0, 0, 0, 0];
+            const val = Math.min(200, Math.max(0, v));
+            let r, g, b, a = 255;
+            if (val < 30) {
+                const t = val / 30;
+                r = 0; g = Math.round(30 * t); b = Math.round(150 + 105 * t); a = Math.round(180 + 75 * t);
+            } else if (val < 70) {
+                const t = (val - 30) / 40;
+                r = 0; g = Math.round(30 + 180 * t); b = 255;
+            } else if (val < 100) {
+                const t = (val - 70) / 30;
+                r = 0; g = Math.round(210 + 45 * t); b = Math.round(255 * (1 - t));
+            } else if (val < 135) {
+                const t = (val - 100) / 35;
+                r = Math.round(255 * t); g = 255; b = 0;
+            } else if (val < 170) {
+                const t = (val - 135) / 35;
+                r = 255; g = Math.round(255 - 130 * t); b = 0;
+            } else {
+                const t = Math.min(1.0, (val - 170) / 30);
+                r = 255; g = Math.round(125 * (1 - t)); b = 0;
+            }
+            return [r, g, b, a];
+        }
+
+        let totalDispX = 0.0;
+        let totalDispY = 0.0;
+        let prevCopCoord = null;
+        let movementDirHistory = [];
+        let liveMovementStatus = "Ready — Touch Mat";
+
+        function updateMovementTelemetry(copX, copY, activeCount) {
+            if (copX === null || copY === null || !activeCount) {
+                liveMovementStatus = "Ready — Touch Mat";
+                prevCopCoord = null;
+                movementDirHistory = [];
+                return;
+            }
+            const CELL_SIZE_MM = 25.4;
+            if (prevCopCoord !== null) {
+                const dx = (copX - prevCopCoord.x) * CELL_SIZE_MM;
+                const dy = (copY - prevCopCoord.y) * CELL_SIZE_MM;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist > 0.15) {
+                    movementDirHistory.push({ dx, dy });
+                    if (movementDirHistory.length > 5) movementDirHistory.shift();
+
+                    totalDispX += dx;
+                    totalDispY += dy;
+
+                    const avgDx = movementDirHistory.reduce((a, b) => a + b.dx, 0) / movementDirHistory.length;
+                    const avgDy = movementDirHistory.reduce((a, b) => a + b.dy, 0) / movementDirHistory.length;
+                    const mag = Math.hypot(avgDx, avgDy);
+
+                    if (mag >= 0.4) {
+                        const angle = Math.atan2(avgDy, avgDx) * 180 / Math.PI;
+                        let dir = "ACTIVE";
+                        if (angle >= -45 && angle < 45) dir = "RIGHT ➡️";
+                        else if (angle >= 45 && angle < 135) dir = "BACKWARD ⬇️";
+                        else if (angle >= -135 && angle < -45) dir = "FORWARD ⬆️";
+                        else dir = "LEFT ⬅️";
+                        liveMovementStatus = dir + " (" + mag.toFixed(1) + " mm)";
+                    } else {
+                        liveMovementStatus = "Holding (" + activeCount + " cells active)";
+                    }
+                } else {
+                    liveMovementStatus = "Holding (" + activeCount + " cells active)";
+                }
+            } else {
+                liveMovementStatus = "Touch Active (" + activeCount + " cells)";
+            }
+            prevCopCoord = { x: copX, y: copY };
+        }
+
+        function drawPressureHeatmap() {
+            const W = vizCanvas.width;
+            const H = vizCanvas.height;
+
+            vctx.fillStyle = '#0c0d12';
+            vctx.fillRect(0, 0, W, H);
+
+            vctx.fillStyle = '#ffffff';
+            vctx.font = '600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            vctx.textAlign = 'center';
+            vctx.textBaseline = 'middle';
+            vctx.fillText('Pressure Visualization', 350, 25);
+
+            const plotLeft = 80;
+            const plotTop = 48;
+            const plotW = 540;
+            const plotH = 490;
+            const cbarLeft = 670;
+            const cbarTop = plotTop;
+            const cbarW = 22;
+            const cbarH = plotH;
+
+            vctx.fillStyle = '#000000';
+            vctx.fillRect(plotLeft, plotTop, plotW, plotH);
+
+            const imgData = heatCtx.createImageData(60, 60);
+            const data = imgData.data;
+
+            // 2D Bilinear Interpolation of exact raw sensor pressure matrix
+            for (let gy = 0; gy < 60; gy++) {
+                const rFloat = (gy / 59) * 19;
+                const r0 = Math.floor(rFloat);
+                const r1 = Math.min(19, r0 + 1);
+                const tr = rFloat - r0;
+
+                for (let gx = 0; gx < 60; gx++) {
+                    const cFloat = (gx / 59) * 19;
+                    const c0 = Math.floor(cFloat);
+                    const c1 = Math.min(19, c0 + 1);
+                    const tc = cFloat - c0;
+
+                    const v00 = currentPressureMap[r0][c0] || 0;
+                    const v01 = currentPressureMap[r0][c1] || 0;
+                    const v10 = currentPressureMap[r1][c0] || 0;
+                    const v11 = currentPressureMap[r1][c1] || 0;
+                    const top = v00 * (1 - tc) + v01 * tc;
+                    const bot = v10 * (1 - tc) + v11 * tc;
+                    const val = top * (1 - tr) + bot * tr;
+
+                    const col = getHeatColorRGBA(val);
+                    const idx = (gy * 60 + gx) * 4;
+                    data[idx] = col[0];
+                    data[idx + 1] = col[1];
+                    data[idx + 2] = col[2];
+                    data[idx + 3] = col[3];
+                }
+            }
+            heatCtx.putImageData(imgData, 0, 0);
+
+            vctx.save();
+            vctx.beginPath();
+            vctx.rect(plotLeft, plotTop, plotW, plotH);
+            vctx.clip();
+
+            vctx.imageSmoothingEnabled = true;
+            vctx.imageSmoothingQuality = 'high';
+            vctx.drawImage(heatCanvas, plotLeft, plotTop, plotW, plotH);
+
+            vctx.globalAlpha = 1.0;
+            vctx.drawImage(heatCanvas, plotLeft, plotTop, plotW, plotH);
+            vctx.globalAlpha = 1.0;
+
+            vctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+            vctx.lineWidth = 1;
+            for (let i = 0; i < 8; i++) {
+                const frac = (i * 2.5) / 20.0;
+                const gy = plotTop + frac * plotH;
+                const gx = plotLeft + frac * plotW;
+                vctx.beginPath(); vctx.moveTo(plotLeft, gy); vctx.lineTo(plotLeft + plotW, gy); vctx.stroke();
+                vctx.beginPath(); vctx.moveTo(gx, plotTop); vctx.lineTo(gx, plotTop + plotH); vctx.stroke();
+            }
+
+            const midX = plotLeft + (10.0 / 20.0) * plotW;
+            vctx.strokeStyle = 'rgba(30, 144, 255, 0.45)';
+            vctx.lineWidth = 2;
+            vctx.setLineDash([5, 5]);
+            vctx.beginPath(); vctx.moveTo(midX, plotTop); vctx.lineTo(midX, plotTop + plotH); vctx.stroke();
+            vctx.setLineDash([]);
+
+            if (copHistory.length > 1) {
+                vctx.beginPath();
+                copHistory.forEach((pt, idx) => {
+                    const hx = plotLeft + (pt.x / 19) * plotW;
+                    const hy = plotTop + (pt.y / 19) * plotH;
+                    if (idx === 0) vctx.moveTo(hx, hy);
+                    else vctx.lineTo(hx, hy);
+                });
+                vctx.strokeStyle = 'dodgerblue';
+                vctx.lineWidth = 2.5;
+                vctx.stroke();
+            }
+
+            // Discrete active sensor cell glow overlay
+            const cellW = plotW / 20.0;
+            const cellH = plotH / 20.0;
+            for (let r = 0; r < 20; r++) {
+                for (let c = 0; c < 20; c++) {
+                    const pv = currentPressureMap[r] ? (currentPressureMap[r][c] || 0) : 0;
+                    if (pv > 0) {
+                        const cellX = plotLeft + c * cellW;
+                        const cellY = plotTop + r * cellH;
+                        vctx.fillStyle = 'rgba(255, 235, 59, 0.28)';
+                        vctx.fillRect(cellX + 1, cellY + 1, cellW - 2, cellH - 2);
+                        vctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+                        vctx.lineWidth = 1;
+                        vctx.strokeRect(cellX + 1, cellY + 1, cellW - 2, cellH - 2);
+                    }
+                }
+            }
+
+            if (liveCop) {
+                const cx = plotLeft + (liveCop.x / 19) * plotW;
+                const cy = plotTop + (liveCop.y / 19) * plotH;
+                vctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                vctx.lineWidth = 2;
+                vctx.beginPath(); vctx.arc(cx, cy, 9, 0, Math.PI * 2); vctx.stroke();
+                vctx.fillStyle = '#ff1744';
+                vctx.beginPath(); vctx.arc(cx, cy, 6, 0, Math.PI * 2); vctx.fill();
+            }
+
+            const hudX = plotLeft + 12;
+            const hudY = plotTop + 12;
+            vctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+            vctx.fillRect(hudX - 6, hudY - 4, 250, 48);
+            vctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            vctx.lineWidth = 1;
+            vctx.strokeRect(hudX - 6, hudY - 4, 250, 48);
+
+            vctx.fillStyle = '#ffffff';
+            vctx.font = '500 13px sans-serif';
+            vctx.textAlign = 'left';
+            vctx.textBaseline = 'top';
+            vctx.fillText("Displacement: X=" + totalDispX.toFixed(1) + "mm, Y=" + totalDispY.toFixed(1) + "mm", hudX, hudY);
+            vctx.fillText("Movement: " + liveMovementStatus, hudX, hudY + 22);
+
+            const bHudY = plotTop + plotH - 46;
+            vctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+            vctx.fillRect(hudX - 6, bHudY - 4, 150, 42);
+            vctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            vctx.lineWidth = 1;
+            vctx.strokeRect(hudX - 6, bHudY - 4, 150, 42);
+
+            vctx.fillStyle = '#ffffff';
+            vctx.fillText(isRecording ? 'Recording: ON' : 'Recording: OFF', hudX, bHudY);
+            vctx.fillText("Patient: " + patientId, hudX, bHudY + 20);
+
+            vctx.restore();
+
+            vctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            vctx.lineWidth = 1.5;
+            vctx.strokeRect(plotLeft, plotTop, plotW, plotH);
+
+            vctx.fillStyle = '#9ca3af';
+            vctx.font = '12px sans-serif';
+
+            vctx.textAlign = 'right';
+            vctx.textBaseline = 'middle';
+            for (let i = 0; i < 8; i++) {
+                const val = (i * 2.5).toFixed(1);
+                const frac = (i * 2.5) / 20.0;
+                const gy = plotTop + frac * plotH;
+                vctx.fillText(val, plotLeft - 8, gy);
+                vctx.beginPath(); vctx.moveTo(plotLeft - 4, gy); vctx.lineTo(plotLeft, gy); vctx.stroke();
+            }
+
+            vctx.textAlign = 'center';
+            vctx.textBaseline = 'top';
+            for (let i = 0; i < 8; i++) {
+                const val = (i * 2.5).toFixed(1);
+                const frac = (i * 2.5) / 20.0;
+                const gx = plotLeft + frac * plotW;
+                vctx.fillText(val, gx, plotTop + plotH + 8);
+                vctx.beginPath(); vctx.moveTo(gx, plotTop + plotH); vctx.lineTo(gx, plotTop + plotH + 4); vctx.stroke();
+            }
+
+            const cbarGrad = vctx.createLinearGradient(0, cbarTop, 0, cbarTop + cbarH);
+            cbarGrad.addColorStop(0.00, 'rgb(255, 20, 10)');
+            cbarGrad.addColorStop(0.15, 'rgb(255, 120, 0)');
+            cbarGrad.addColorStop(0.32, 'rgb(255, 220, 0)');
+            cbarGrad.addColorStop(0.50, 'rgb(0, 230, 80)');
+            cbarGrad.addColorStop(0.65, 'rgb(0, 190, 255)');
+            cbarGrad.addColorStop(0.85, 'rgb(0, 30, 200)');
+            cbarGrad.addColorStop(1.00, 'rgb(12, 13, 20)');
+
+            vctx.fillStyle = cbarGrad;
+            vctx.fillRect(cbarLeft, cbarTop, cbarW, cbarH);
+            vctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            vctx.lineWidth = 1;
+            vctx.strokeRect(cbarLeft, cbarTop, cbarW, cbarH);
+
+            vctx.fillStyle = '#d1d5db';
+            vctx.font = '12px sans-serif';
+            vctx.textAlign = 'left';
+            vctx.textBaseline = 'middle';
+            const cbarTicks = [200, 175, 150, 125, 100, 75, 50, 25, 0];
+            cbarTicks.forEach((tVal) => {
+                const frac = (200 - tVal) / 200;
+                const ty = cbarTop + frac * cbarH;
+                vctx.fillText("- " + tVal, cbarLeft + cbarW + 3, ty);
+            });
+
+            vctx.save();
+            vctx.translate(cbarLeft + cbarW + 48, cbarTop + cbarH / 2);
+            vctx.rotate(-Math.PI / 2);
+            vctx.fillStyle = '#f3f4f6';
+            vctx.font = '500 13px sans-serif';
+            vctx.textAlign = 'center';
+            vctx.fillText('Pressure (kPa)', 0, 0);
+            vctx.restore();
+        }
+
+        const connBanner = document.getElementById('conn-banner');
+        const connBannerText = document.getElementById('conn-banner-text');
+
+        function fetchMatFrame() {
+            return fetch("/api/game/" + patientId + "/frame/")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.connected || data.success) {
+                        lastFrameTimestamp = Date.now();
+                        isMatConnected = true;
+
+                        let activeCount = data.active_count || 0;
+                        let totalSum = data.total_pressure || 0;
+
+                        // Robust 20x20 matrix reconstruction from bitmask or pressure map
+                        if (data.matrix && data.matrix.length === 20) {
+                            for (let r = 0; r < 20; r++) {
+                                const rowMask = data.matrix[r] || 0;
+                                for (let c = 0; c < 20; c++) {
+                                    currentPressureMap[r][c] = (rowMask & (1 << c)) ? 120 : 0;
+                                }
+                            }
+                        } else if (data.pressure_map && data.pressure_map.length === 20) {
+                            for (let r = 0; r < 20; r++) {
+                                for (let c = 0; c < 20; c++) {
+                                    currentPressureMap[r][c] = data.pressure_map[r][c] || 0;
+                                }
+                            }
+                        } else {
+                            for (let r = 0; r < 20; r++) {
+                                currentPressureMap[r].fill(0);
+                            }
+                        }
+
+                        if (data.x !== undefined && data.x !== null && data.y !== undefined && data.y !== null) {
+                            liveCop = { x: data.x, y: data.y };
+                        } else if (data.cop) {
+                            liveCop = data.cop;
+                        } else {
+                            liveCop = null;
+                        }
+
+                        if (liveCop && activeCount > 0) {
+                            copHistory.push(liveCop);
+                            if (copHistory.length > 50) copHistory.shift();
+                        } else {
+                            copHistory = [];
+                            liveCop = null;
+                        }
+
+                        // Update movement telemetry on real frame arrival
+                        updateMovementTelemetry(liveCop ? liveCop.x : null, liveCop ? liveCop.y : null, activeCount);
+
+                        let leftSum = 0;
+                        let rightSum = 0;
+
+                        if (activeCount === 0) {
+                            for (let r = 0; r < 20; r++) {
+                                for (let c = 0; c < 20; c++) {
+                                    const v = currentPressureMap[r][c];
+                                    if (v > 2) {
+                                        activeCount++;
+                                        totalSum += v;
+                                        if (c < 10) leftSum += v;
+                                        else rightSum += v;
+                                    }
+                                }
+                            }
+                        } else {
+                            for (let r = 0; r < 20; r++) {
+                                for (let c = 0; c < 20; c++) {
+                                    const v = currentPressureMap[r][c];
+                                    if (c < 10) leftSum += v;
+                                    else rightSum += v;
+                                }
+                            }
+                        }
+
+                        document.getElementById('active-cells-val').textContent = activeCount + ' / 400';
+                        document.getElementById('total-press-val').textContent = totalSum.toFixed(1) + ' kPa';
+
+                        const grandTotal = leftSum + rightSum;
+                        let leftPct = 50, rightPct = 50;
+                        if (grandTotal > 0) {
+                            leftPct = Math.round((leftSum / grandTotal) * 100);
+                            rightPct = 100 - leftPct;
+                        }
+                        document.getElementById('balance-text-val').textContent = leftPct + '% / ' + rightPct + '%';
+                        document.getElementById('bar-left').style.width = leftPct + '%';
+                        document.getElementById('bar-right').style.width = rightPct + '%';
+
+                        // Update Connection Banner
+                        connBanner.className = 'conn-banner connected';
+                        const portName = data.port || 'USB Serial';
+                        if (activeCount > 0) {
+                            connBannerText.textContent = '⚡ Touch Active: ' + activeCount + ' cells (' + totalSum.toFixed(0) + ' kPa) | ' + leftPct + '% L / ' + rightPct + '% R';
+                        } else {
+                            connBannerText.textContent = '🟢 Mat Connected on ' + portName + ' (Noise-Free Baseline — Press or step on mat)';
+                        }
+
+                        if (isRecording) {
+                            recordedFrames.push({
+                                t: Date.now(),
+                                activeCount,
+                                totalSum,
+                                cop: liveCop
+                            });
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Frame fetch error:', err);
+                    if (Date.now() - lastFrameTimestamp > 3000) {
+                        isMatConnected = false;
+                        connBanner.className = 'conn-banner disconnected';
+                        connBannerText.textContent = '🔴 Mat Disconnected — Connect USB pressure mat cable and click Connect Mat';
+                    }
+                });
+        }
+
+        function loop() {
+            try {
+                drawPressureHeatmap();
+            } catch (e) {
+                console.error('Heatmap render error:', e);
+            }
+            requestAnimationFrame(loop);
+        }
+
+        const portSelect = document.getElementById('port-select');
+        const connectBtn = document.getElementById('connect-btn');
+        const calibBtn = document.getElementById('calib-btn');
+        const sensSelect = document.getElementById('sens-select');
+
+        function startBridge() {
+            const port = portSelect ? portSelect.value : 'auto';
+            connBanner.className = 'conn-banner disconnected';
+            connBannerText.textContent = '🔄 Connecting to mat on ' + port + '...';
+            
+            fetch("/api/game/" + patientId + "/start_bridge/", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ port })
+            }).then(r => r.json()).then(data => {
+                console.log('Bridge response:', data);
+            });
+        }
+
+        connectBtn.addEventListener('click', startBridge);
+        calibBtn.addEventListener('click', () => {
+            connBannerText.textContent = '🔄 Zero-Calibrating mat baseline... Please leave mat untouched for 2 seconds';
+            connBanner.className = 'conn-banner disconnected';
+            fetch("/api/game/" + patientId + "/recalibrate/", { method: 'POST' })
+                .then(() => {
+                    setTimeout(() => {
+                        connBannerText.textContent = '🟢 Mat Baseline Calibrated to Zero Noise!';
+                        connBanner.className = 'conn-banner connected';
+                    }, 1800);
+                });
+        });
+        sensSelect.addEventListener('change', (e) => {
+            fetch("/api/game/" + patientId + "/threshold/", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ threshold: parseInt(e.target.value) })
+            });
+        });
+
+        const startRecBtn = document.getElementById('start-rec-btn');
+        const stopRecBtn = document.getElementById('stop-rec-btn');
+        const recStatus = document.getElementById('rec-status');
+
+        startRecBtn.addEventListener('click', () => {
+            isRecording = true;
+            recordedFrames = [];
+            startRecBtn.style.display = 'none';
+            stopRecBtn.style.display = 'flex';
+            recStatus.textContent = 'Status: Live Recording Active';
+            recStatus.style.color = '#10b981';
+        });
+
+        stopRecBtn.addEventListener('click', () => {
+            isRecording = false;
+            startRecBtn.style.display = 'flex';
+            stopRecBtn.style.display = 'none';
+            recStatus.textContent = 'Status: Session Saved';
+            recStatus.style.color = '#3b82f6';
+
+            const notes = document.getElementById('session-notes').value || "Routine pressure mat recording";
+            fetch('/api/save_session/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    patient_id: patientId,
+                    pressure_data: currentPressureMap,
+                    displacement_x: totalDispX,
+                    displacement_y: totalDispY,
+                    movement_status: liveMovementStatus,
+                    notes: notes
+                })
+            }).then(r => r.json()).then(data => {
+                alert("Session recorded and saved successfully for Patient " + patientId + "!");
+            });
+        });
+
+        let isFetchingMat = false;
+        async function matStreamLoop() {
+            if (!isFetchingMat) {
+                isFetchingMat = true;
+                try {
+                    await fetchMatFrame();
+                } catch(e) {
+                } finally {
+                    isFetchingMat = false;
+                }
+            }
+            setTimeout(matStreamLoop, 35);
+        }
+
+        startBridge();
+        requestAnimationFrame(matStreamLoop);
+        loop();
+    </script>
+</body>
+</html>

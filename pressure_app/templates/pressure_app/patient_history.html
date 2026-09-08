@@ -1,3 +1,7 @@
+
+    {% load static %}
+
+{% load static %}
 {% block content %}
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -31,9 +35,15 @@
                     <div id="port-status-msg"></div>
                 </div>
 
-                <a id="play-game-btn" href="{% url 'game_page' patient.patient_id %}" class="btn-play-cockpit">
-                   🎮 Launch Live Dual Cockpit (Game + Mat Heatmap)
-                </a>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+                    <a id="use-mat-btn" href="{% url 'mat_page' patient.patient_id %}" class="btn-play-cockpit" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; text-align: center; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35); transition: transform 0.2s ease;">
+                        ⚡ Real-Time Pressure Mat
+                    </a>
+
+                    <a id="use-game-btn" href="{% url 'game_page' patient.patient_id %}" class="btn-play-cockpit" style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; text-align: center; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35); transition: transform 0.2s ease;">
+                        ⭐ Collect the Stars Game
+                    </a>
+                </div>
             </div>
 
             <div class="weekly-card">
@@ -121,8 +131,7 @@
     }
 
     .container {
-        width: 85%;
-        max-width: 1440px;
+        width: 75%; max-width: 1200px;
         margin: 0 auto;
         padding: 30px 0 60px;
     }

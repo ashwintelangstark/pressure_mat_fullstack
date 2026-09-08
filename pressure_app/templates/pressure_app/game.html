@@ -1,1241 +1,537 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Collect the Stars & Pressure Visualization - {{ patient.name }}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
-        * {
-            box-sizing: border-box;
+    {% load static %}
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collect the Stars Game - {{ patient.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #07090e;
+            --panel-bg: #0f172a;
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-amber: #f59e0b;
+            --accent-indigo: #6366f1;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
         }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: #FAF6F0;
-            background-image: radial-gradient(circle at 10% 10%, rgba(254, 243, 199, 0.6) 0%, rgba(250, 246, 240, 1) 90%);
-            color: #261705;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
             min-height: 100vh;
-        }
-        .container {
-            width: 85%;
-            max-width: 1440px;
-            margin: 0 auto;
-            padding: 20px 0 50px;
-            text-align: center;
-        }
-        header.dashboard-header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 16px;
-            margin-bottom: 20px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid rgba(245, 158, 11, 0.25);
+            flex-direction: column;
+            overflow-x: hidden;
         }
-        a.back-link {
-            color: #78350F;
+
+        header {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 16px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-title .icon-wrap {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+        }
+
+        .header-title h1 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .patient-badge {
+            font-size: 0.85rem;
+            color: #a5b4fc;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .btn-home {
+            padding: 10px 18px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--panel-border);
+            color: #ffffff;
             text-decoration: none;
-            font-size: 14px;
-            font-weight: 700;
+            font-size: 13px;
+            font-weight: 600;
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: #FEF3C7;
-            border: 1px solid #FCD34D;
-            padding: 10px 18px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
-            transition: all 0.25s ease;
-        }
-        a.back-link:hover {
-            background: #FCD34D;
-            color: #261705;
-            transform: translateY(-2px);
-        }
-        .header-title-wrap h1 {
-            margin: 0;
-            font-size: 26px;
-            font-weight: 800;
-            color: #261705;
-            letter-spacing: -0.5px;
-        }
-        .header-title-wrap .subtitle {
-            margin: 4px 0 0;
-            font-size: 13px;
-            font-weight: 600;
-            color: #78350F;
-        }
-        .port-controls-bar {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            background: #ffffff;
-            padding: 8px 16px;
-            border-radius: 14px;
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.12);
-            flex-wrap: wrap;
-        }
-        .port-controls-bar label {
-            font-size: 13px;
-            color: #D97706;
-            font-weight: 800;
-            margin: 0;
-        }
-        .port-controls-bar select {
-            padding: 8px 12px;
-            border-radius: 10px;
-            font-size: 13px;
-            font-family: 'Manrope', sans-serif;
-            background: #FAF6F0;
-            color: #261705;
-            border: 1px solid #FEF3C7;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .port-controls-bar select:focus {
-            outline: none;
-            border-color: #F59E0B;
-        }
-        .btn-icon {
-            padding: 8px 12px;
-            font-size: 13px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #F59E0B, #D97706);
-            color: white;
-            cursor: pointer;
-            border: none;
-            font-weight: bold;
-            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
             transition: all 0.2s ease;
         }
-        .btn-icon:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 14px rgba(245, 158, 11, 0.4);
-        }
-        #connection-badge {
-            display: inline-block;
-            padding: 8px 20px;
-            border-radius: 30px;
-            font-size: 13px;
-            font-weight: 700;
-            margin: 10px 0 20px;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
-            transition: all 0.3s;
-        }
-        .connected {
-            background: #D1FAE5;
-            color: #065F46;
-            border: 1px solid #6EE7B7;
-        }
-        .disconnected {
-            background: #FEE2E2;
-            color: #991B1B;
-            border: 1px solid #FCA5A5;
+        .btn-home:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
-        /* Side-by-Side Dual Cockpit */
-        .cockpit-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-            align-items: stretch;
-        }
-        @media (max-width: 1100px) {
-            .cockpit-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        .cockpit-card {
-            background: #ffffff;
-            border: 1px solid rgba(245, 158, 11, 0.25);
-            border-radius: 24px;
+        .main-layout {
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
             padding: 24px;
-            box-shadow: 0 12px 35px -5px rgba(245, 158, 11, 0.15), 0 4px 12px rgba(0, 0, 0, 0.03);
+            flex: 1;
             display: flex;
             flex-direction: column;
-            position: relative;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            gap: 20px;
         }
-        .card-header {
+
+        .game-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #FEF3C7;
+            flex-direction: column;
+            gap: 20px;
         }
-        .card-header h2 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 800;
-            color: #261705;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+
+        .hud-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
         }
-        .card-tag {
-            background: #FEF3C7;
-            color: #78350F;
-            font-weight: 700;
-            font-size: 11px;
-            padding: 4px 10px;
-            border-radius: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border: 1px solid #FCD34D;
-        }
-        .hud {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
-        }
+
         .hud-item {
-            background: #FAF6F0;
-            border: 1px solid #FEF3C7;
-            border-radius: 14px;
-            padding: 10px 16px;
-            min-width: 100px;
-            flex: 1;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--panel-border);
+            padding: 14px 20px;
+            border-radius: 16px;
             text-align: center;
         }
-        .hud-item .label {
-            font-size: 11px;
-            color: #78350F;
+
+        .hud-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            font-weight: 700;
         }
-        .hud-item .value {
-            font-size: 20px;
+
+        .hud-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.6rem;
             font-weight: 800;
-            color: #D97706;
+            color: #ffcf3f;
             margin-top: 4px;
         }
 
-        /* Canvas Wrap */
         .stage-wrap {
             position: relative;
-            margin: 0 auto;
-            border-radius: 20px;
-            padding: 12px;
-            background: #FAF6F0;
-            border: 2px solid rgba(245, 158, 11, 0.3);
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: inset 0 2px 10px rgba(245, 158, 11, 0.12);
             width: 100%;
-            max-width: 540px;
+            background: #090d16;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid var(--panel-border);
             aspect-ratio: 1 / 1;
         }
-        canvas {
+
+        canvas#game-canvas {
             width: 100%;
             height: 100%;
-            border-radius: 14px;
             display: block;
-            touch-action: none;
-        }
-        #game-canvas {
-            background: #1C1917;
-        }
-        #viz-canvas {
-            background: #1C1917;
+            cursor: crosshair;
         }
 
-        /* Game Overlay */
         #overlay {
             position: absolute;
-            inset: 12px;
-            border-radius: 14px;
-            background: rgba(38, 23, 5, 0.92);
-            backdrop-filter: blur(8px);
+            inset: 0;
+            background: rgba(9, 13, 22, 0.88);
+            backdrop-filter: blur(10px);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            padding: 32px;
             text-align: center;
-            padding: 24px;
             z-index: 10;
         }
-        #overlay h2 { margin: 0 0 10px; font-size: 26px; color: #FCD34D; font-weight: 800; }
-        #overlay p { margin: 4px 0 18px; color: #FEF3C7; font-size: 14px; max-width: 420px; font-weight: 500; }
 
-        .game-controls {
-            margin-top: 16px;
+        #overlay h2 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+
+        #overlay p {
+            color: var(--text-muted);
+            font-size: 14px;
+            max-width: 480px;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .ctrl-wrap {
             display: flex;
-            justify-content: center;
             align-items: center;
             gap: 12px;
-            flex-wrap: wrap;
         }
+
         select.game-select {
-            padding: 10px 16px;
-            border-radius: 12px;
-            border: 1px solid #FEF3C7;
-            background: #FAF6F0;
-            color: #261705;
-            font-family: 'Manrope', sans-serif;
-            font-weight: 700;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        button.btn-primary {
-            background: linear-gradient(135deg, #F59E0B, #D97706);
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.18);
             color: #ffffff;
-            font-weight: 800;
-            padding: 12px 24px;
+            padding: 12px 18px;
             border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            outline: none;
+        }
+
+        .btn-start {
+            padding: 12px 28px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            font-size: 15px;
+            font-weight: 800;
             border: none;
             cursor: pointer;
-            font-size: 15px;
-            font-family: 'Manrope', sans-serif;
-            box-shadow: 0 6px 18px rgba(245, 158, 11, 0.35);
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
             transition: all 0.2s ease;
         }
-        button.btn-primary:hover {
+        .btn-start:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 22px rgba(245, 158, 11, 0.45);
-        }
-
-        /* Biomechanical Balance Bar */
-        .balance-box {
-            margin: 14px auto 14px;
-            width: 100%;
-            max-width: 520px;
-            background: #FEF3C7;
-            border: 1px solid #FCD34D;
-            padding: 10px 16px;
-            border-radius: 14px;
-        }
-        .balance-text-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            margin-bottom: 6px;
-            font-weight: 700;
-            color: #78350F;
-        }
-        .balance-meter {
-            height: 14px;
-            background: #ffffff;
-            border-radius: 8px;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            border: 1px solid #FCD34D;
-        }
-        .meter-left {
-            background: linear-gradient(90deg, #FBBF24, #F59E0B);
-            height: 100%;
-            transition: width 0.1s ease-out;
-        }
-        .meter-divider {
-            width: 3px;
-            height: 100%;
-            background: #261705;
-            z-index: 2;
-        }
-        .meter-right {
-            background: linear-gradient(90deg, #D97706, #B45309);
-            height: 100%;
-            transition: width 0.1s ease-out;
-        }
-
-        /* 20x20 Matrix Sensor Cell Inspector */
-        .inspector-toggle-wrap {
-            margin-top: 14px;
-            text-align: center;
-        }
-        .btn-ghost {
-            background: #FEF3C7;
-            color: #78350F;
-            border: 1px solid #FCD34D;
-            border-radius: 12px;
-            padding: 8px 16px;
-            font-size: 13px;
-            font-weight: 700;
-            font-family: 'Manrope', sans-serif;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .btn-ghost:hover {
-            background: #FCD34D;
-            color: #261705;
-        }
-        #matrix-inspector {
-            display: block;
-            margin-top: 12px;
-            background: rgba(0, 0, 0, 0.45);
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-        .matrix-grid {
-            display: grid;
-            grid-template-columns: repeat(20, 1fr);
-            gap: 2px;
-            max-width: 440px;
-            margin: 8px auto 4px;
-        }
-        .sensor-cell {
-            aspect-ratio: 1 / 1;
-            background: rgba(255,255,255,0.08);
-            border-radius: 2px;
-            transition: background 0.05s;
-        }
-        .sensor-cell.active {
-            background: #2ecc71;
-            box-shadow: 0 0 4px #2ecc71;
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
         }
     </style>
 </head>
 <body>
-<div class="container">
 
-    <!-- Top Dashboard Header -->
-    <header class="dashboard-header">
-        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <a class="back-link" href="{% url 'home' %}">
-                <i class="fa fa-home"></i> Dashboard
-            </a>
-            <a class="back-link" href="/patient/{{ patient.patient_id }}/readings/">
-                <i class="fa fa-user"></i> {{ patient.name }}'s Records
-            </a>
-        </div>
-
-        <div class="header-title-wrap">
-            <h1>🎮 Live Mat Cockpit: Star Game & Pressure Heatmap</h1>
-            <div class="subtitle">Patient: <strong>{{ patient.name }}</strong> (ID: {{ patient.patient_id }}) | Real-Time Synchronized 20x20 Stream</div>
-        </div>
-
-        <div class="port-controls-bar">
-            <label for="game-port-select">🔌 Port:</label>
-            <select id="game-port-select">
-                <option value="auto">⚡ Auto-detect Port</option>
-                {% for p in ports %}
-                <option value="{{ p.device }}" {% if selected_port == p.device %}selected{% endif %}>{{ p.description }}</option>
-                {% endfor %}
-            </select>
-            <button id="game-refresh-ports-btn" type="button" class="btn-icon" title="Refresh Available Ports">🔄</button>
-            <button id="recalibrate-zero-btn" type="button" class="btn-icon" style="background: #f59e0b; color: #1e1b4b; font-weight: 700;" title="Zero / Calibrate baseline across all 400 sensors (Keep mat empty)">
-                🎯 Zero Mat Baseline
-            </button>
-            <label for="mat-sensitivity-select" style="margin-left: 8px; font-weight: 600; font-size: 13px;">⚡ Sensitivity:</label>
-            <select id="mat-sensitivity-select" style="padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); background: #1e1b4b; color: #ffcf3f; font-weight: 700; font-size: 13px;" title="Adjust touch sensitivity threshold">
-                <option value="8">Ultra High (8) - Feather Touch</option>
-                <option value="15" selected>High (15) - Recommended</option>
-                <option value="25">Medium (25) - Normal Gait</option>
-                <option value="40">Firm (40) - Heavy Steps</option>
-            </select>
-            <div style="display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; font-size: 12px; color: #cfc4ff;">
-                <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 3px;" title="Mirror Left / Right orientation">
-                    <input type="checkbox" id="flip-x-check"> Flip X
-                </label>
-                <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 3px;" title="Invert Front / Back orientation">
-                    <input type="checkbox" id="flip-y-check"> Flip Y
-                </label>
+    <header>
+        <div class="header-title">
+            <i class="fas fa-gamepad" style="font-size: 28px; color: #6366F1; margin-right: 14px;"></i>
+            <div>
+                <h1>Collect the Stars Rehabilitation Game</h1>
+                <div class="patient-badge"><i class="fas fa-user"></i> Patient: {{ patient.name }} (ID: {{ patient.patient_id }})</div>
             </div>
         </div>
+        <a href="{% url 'patient_readings' patient.patient_id %}" class="btn-home"><i class="fas fa-arrow-left"></i> Back to Patient Data</a>
     </header>
 
-    <!-- Global Connection Badge -->
-    <div id="connection-badge" class="disconnected">Connecting to pressure mat...</div>
-
-    <!-- Side-by-Side Dual Cockpit Grid -->
-    <div class="cockpit-grid">
-
-        <!-- LEFT PANEL: COLLECT THE STARS GAME -->
-        <div class="cockpit-card">
-            <div class="card-header">
-                <h2><i class="fa fa-star" style="color: #ffcf3f;"></i> Collect the Stars Game</h2>
-                <span class="card-tag">Rehab Game</span>
-            </div>
-
-            <div class="hud">
-                <div class="hud-item"><div class="label">Score</div><div class="value" id="hud-score">0</div></div>
-                <div class="hud-item"><div class="label">Stars</div><div class="value" id="hud-stars">0 / 0</div></div>
-                <div class="hud-item"><div class="label">Time</div><div class="value" id="hud-time">0.0s</div></div>
+    <div class="main-layout">
+        <div class="game-card">
+            <div class="hud-row">
+                <div class="hud-item">
+                    <div class="hud-label">Score</div>
+                    <div class="hud-val" id="hud-score">0</div>
+                </div>
+                <div class="hud-item">
+                    <div class="hud-label">Stars Collected</div>
+                    <div class="hud-val" id="hud-stars">0 / 0</div>
+                </div>
+                <div class="hud-item">
+                    <div class="hud-label">Time Elapsed</div>
+                    <div class="hud-val" id="hud-time">0.0s</div>
+                </div>
             </div>
 
             <div class="stage-wrap">
                 <canvas id="game-canvas" width="600" height="600"></canvas>
                 <div id="overlay">
                     <h2 id="overlay-title">Ready to Play?</h2>
-                    <p id="overlay-body">Step on the mat to move the glowing dot and collect all stars as quickly and steadily as you can.</p>
-                    <div class="game-controls">
+                    <p id="overlay-body">Move or slide your mouse cursor across the canvas to control the player dot and collect all stars as quickly as possible!</p>
+                    <div class="ctrl-wrap">
                         <select id="difficulty" class="game-select">
                             <option value="easy">Easy (5 stars)</option>
-                            <option value="medium">Medium (8 stars)</option>
+                            <option value="medium" selected>Medium (8 stars)</option>
                             <option value="hard">Hard (12 stars)</option>
                         </select>
-                        <button class="btn-primary" id="start-btn">Start Game</button>
+                        <button class="btn-start" id="start-btn">Start Game</button>
                     </div>
                 </div>
             </div>
 
-            <div class="game-controls" style="margin-top: 10px;">
-                <span style="font-size: 12px; color: #cfc4ff;">Controls: Walk on mat, or use Arrow Keys / Drag mouse</span>
+            <div style="text-align: center; color: var(--text-muted); font-size: 13px; font-weight: 600;">
+                💡 Tip: Slide cursor smoothly over target stars to collect them instantaneously.
             </div>
         </div>
-
-        <!-- RIGHT PANEL: REAL-TIME PRESSURE VISUALIZATION -->
-        <div class="cockpit-card">
-            <div class="card-header">
-                <h2><i class="fa fa-chart-area" style="color: #38ef7d;"></i> Real-Time Pressure Mat Heatmap</h2>
-                <span class="card-tag">20x20 FSR Matrix</span>
-            </div>
-
-            <div class="hud">
-                <div class="hud-item"><div class="label">Total Load</div><div class="value" id="viz-total">0</div></div>
-                <div class="hud-item"><div class="label">Active Points</div><div class="value" id="viz-active">0 / 400</div></div>
-                <div class="hud-item"><div class="label">Center of Pressure</div><div class="value" id="viz-cop">X: -- | Y: --</div></div>
-            </div>
-
-            <!-- Bilateral Balance Meter -->
-            <div class="balance-box">
-                <div class="balance-text-row">
-                    <span id="left-pct-label" style="color: #5dade2;">Left Foot: 50.0%</span>
-                    <span style="color: #ffcf3f;">⚖️ Bilateral Weight Distribution</span>
-                    <span id="right-pct-label" style="color: #f39c12;">Right Foot: 50.0%</span>
-                </div>
-                <div class="balance-meter">
-                    <div class="meter-left" id="meter-left" style="width: 50%;"></div>
-                    <div class="meter-divider"></div>
-                    <div class="meter-right" id="meter-right" style="width: 50%;"></div>
-                </div>
-            </div>
-
-            <div class="stage-wrap">
-                <canvas id="viz-canvas" width="600" height="600"></canvas>
-            </div>
-
-            <div class="inspector-toggle-wrap">
-                <button type="button" class="btn-ghost" id="toggle-inspector-btn">
-                    🔍 Toggle 20x20 Sensor Cell Matrix Inspector (400 Bits)
-                </button>
-
-                <div id="matrix-inspector">
-                    <div style="font-size: 12px; color: #d9d0ff; margin-bottom: 6px;">
-                        Live 400-Point Sensor Bit Grid (Green = Active Touch Cell)
-                    </div>
-                    <div class="matrix-grid" id="sensor-matrix-cells"></div>
-                </div>
-            </div>
-        </div>
-
     </div>
-</div>
 
-<script>
-const patientId = "{{ patient.patient_id }}";
-const FRAME_URL = `/api/game/${patientId}/frame/`;
-const SAVE_URL = `/api/game/${patientId}/save/`;
+    <script>
+        const patientId = "{{ patient.patient_id }}";
+        const SAVE_URL = "/api/game/" + patientId + "/save/";
 
-const GRID_SIZE = 20;
+        const gameCanvas = document.getElementById('game-canvas');
+        const gctx = gameCanvas.getContext('2d');
+        const GRID_SIZE = 20;
 
-// Game Canvas setup
-const gameCanvas = document.getElementById('game-canvas');
-const gctx = gameCanvas.getContext('2d');
-const cellPx = gameCanvas.width / GRID_SIZE;
+        let state = 'idle';
+        let difficulty = 'medium';
+        let playerPos = { x: 10, y: 10 };
+        let displayPos = { x: 10, y: 10 };
+        let stars = [];
+        let score = 0;
+        let startTime = 0;
+        let duration = 0;
+        let timerInterval = null;
+        let lastStarTime = 0;
+        let starEvents = [];
+        let pathData = [];
+        let pathInterval = null;
+        let mouseHovering = false;
 
-// Visualization Canvas setup
-const vizCanvas = document.getElementById('viz-canvas');
-const vctx = vizCanvas.getContext('2d');
+        const difficultyConfig = {
+            easy: { count: 5, radius: 1.4 },
+            medium: { count: 8, radius: 1.1 },
+            hard: { count: 12, radius: 0.8 }
+        };
 
-const difficultyConfig = {
-    easy:   { stars: 5,  radius: 1.6, timeLimit: 90 },
-    medium: { stars: 8,  radius: 1.3, timeLimit: 90 },
-    hard:   { stars: 12, radius: 1.0, timeLimit: 120 },
-};
-
-let state = 'idle'; // idle | playing | finished
-let difficulty = 'easy';
-let stars = [];
-let playerPos = { x: 10, y: 10 };
-let displayPos = { x: 10, y: 10 };
-let pathData = [];
-let starEvents = [];
-let score = 0;
-let startTime = 0;
-let lastStarTime = 0;
-let connected = false;
-let pollTimer = null;
-let animFrame = null;
-let manualControl = { up: false, down: false, left: false, right: false };
-let dragging = false;
-let flipX = localStorage.getItem('mat_flip_x') === 'true';
-let flipY = localStorage.getItem('mat_flip_y') === 'true';
-
-// Sync flip checkboxes
-const flipXCheck = document.getElementById('flip-x-check');
-const flipYCheck = document.getElementById('flip-y-check');
-if (flipXCheck) {
-    flipXCheck.checked = flipX;
-    flipXCheck.addEventListener('change', (e) => {
-        flipX = e.target.checked;
-        localStorage.setItem('mat_flip_x', flipX);
-    });
-}
-if (flipYCheck) {
-    flipYCheck.checked = flipY;
-    flipYCheck.addEventListener('change', (e) => {
-        flipY = e.target.checked;
-        localStorage.setItem('mat_flip_y', flipY);
-    });
-}
-
-// Real-time Pressure Visualization variables
-let currentMatrix = new Array(20).fill(0); // 20 row bitmasks
-let currentPressureMap = Array.from({ length: 20 }, () => new Array(20).fill(0));
-let copHistory = []; // last 35 positions [(x, y), ...]
-let liveCop = null;
-let currentLeftPct = 50.0;
-let currentRightPct = 50.0;
-let currentTotalPressure = 0.0;
-let currentActiveCount = 0;
-
-function gridToPx(v) { return v * cellPx + cellPx / 2; }
-
-// Generate random star locations with safe margins
-function randStarPositions(n) {
-    const pts = [];
-    let attempts = 0;
-    while (pts.length < n && attempts < 500) {
-        attempts++;
-        const x = 1.8 + Math.random() * (GRID_SIZE - 3.6);
-        const y = 1.8 + Math.random() * (GRID_SIZE - 3.6);
-        const tooClose = pts.some(p => Math.hypot(p.x - x, p.y - y) < 3.2);
-        if (!tooClose) pts.push({ x, y, collected: false });
-    }
-    return pts;
-}
-
-function setOverlay(visible, title, body) {
-    const overlay = document.getElementById('overlay');
-    overlay.style.display = visible ? 'flex' : 'none';
-    if (title) document.getElementById('overlay-title').textContent = title;
-    if (body) document.getElementById('overlay-body').textContent = body;
-}
-
-function startGame() {
-    difficulty = document.getElementById('difficulty').value;
-    const cfg = difficultyConfig[difficulty];
-    stars = randStarPositions(cfg.stars);
-    score = 0;
-    pathData = [];
-    starEvents = [];
-    startTime = performance.now();
-    lastStarTime = startTime;
-    state = 'playing';
-    setOverlay(false);
-    updateHud();
-}
-
-function updateHud() {
-    document.getElementById('hud-score').textContent = score;
-    const collected = stars.filter(s => s.collected).length;
-    document.getElementById('hud-stars').textContent = `${collected} / ${stars.length}`;
-    const elapsed = state === 'playing' ? (performance.now() - startTime) / 1000 : 0;
-    document.getElementById('hud-time').textContent = `${elapsed.toFixed(1)}s`;
-}
-
-function finishGame(reason) {
-    state = 'finished';
-    const duration = (performance.now() - startTime) / 1000;
-    const collected = stars.filter(s => s.collected).length;
-
-    const summary = {
-        duration_seconds: duration,
-        difficulty: difficulty,
-        target_count: stars.length,
-        stars_collected: collected,
-        score: score,
-        path_data: pathData,
-        star_events: starEvents,
-    };
-
-    fetch(SAVE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(summary),
-    }).catch(() => {});
-
-    const title = collected === stars.length ? "🌟 All Stars Collected! Wonderful Balance!" : "Time's up!";
-    setOverlay(true, title, `You collected ${collected} of ${stars.length} stars in ${duration.toFixed(1)}s. Total Score: ${score}`);
-    document.getElementById('start-btn').textContent = 'Play Again';
-}
-
-function checkCollisions() {
-    const cfg = difficultyConfig[difficulty];
-    const hitRadius = cfg.radius + 0.35; // Forgiving hit radius matching natural foot COP
-    stars.forEach((s, i) => {
-        if (s.collected) return;
-        const d1 = Math.hypot(s.x - playerPos.x, s.y - playerPos.y);
-        const d2 = Math.hypot(s.x - displayPos.x, s.y - displayPos.y);
-        const d = Math.min(d1, d2);
-        if (d <= hitRadius) {
-            s.collected = true;
-            score += 100;
-            const now = performance.now();
-            starEvents.push({
-                index: i,
-                x: s.x,
-                y: s.y,
-                t: (now - startTime) / 1000,
-                time_to_reach: (now - lastStarTime) / 1000,
-            });
-            lastStarTime = now;
+        function setOverlay(show, title = '', body = '') {
+            const overlay = document.getElementById('overlay');
+            if (show) {
+                if (title) document.getElementById('overlay-title').textContent = title;
+                if (body) document.getElementById('overlay-body').textContent = body;
+                overlay.style.display = 'flex';
+            } else {
+                overlay.style.display = 'none';
+            }
         }
-    });
-    if (stars.length > 0 && stars.every(s => s.collected)) {
-        finishGame('complete');
-    }
-}
 
-// -------------------------------------------------------------
-// DRAW LEFT: COLLECT THE STARS GAME CANVAS
-// -------------------------------------------------------------
-function drawGame() {
-    gctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+        function generateStars(count) {
+            const list = [];
+            const margin = 2.5;
+            for (let i = 0; i < count; i++) {
+                let x, y, tooClose;
+                let attempts = 0;
+                do {
+                    x = margin + Math.random() * (GRID_SIZE - 2 * margin);
+                    y = margin + Math.random() * (GRID_SIZE - 2 * margin);
+                    tooClose = list.some(s => Math.hypot(s.x - x, s.y - y) < 2.5);
+                    attempts++;
+                } while (tooClose && attempts < 100);
+                list.push({ x, y, collected: false });
+            }
+            return list;
+        }
 
-    // Subtle 20x20 grid lines
-    gctx.strokeStyle = 'rgba(255,255,255,0.07)';
-    gctx.lineWidth = 1;
-    for (let i = 0; i <= GRID_SIZE; i++) {
-        gctx.beginPath();
-        gctx.moveTo(i * cellPx, 0); gctx.lineTo(i * cellPx, gameCanvas.height);
-        gctx.stroke();
-        gctx.beginPath();
-        gctx.moveTo(0, i * cellPx); gctx.lineTo(gameCanvas.width, i * cellPx);
-        gctx.stroke();
-    }
+        function startGame() {
+            difficulty = document.getElementById('difficulty').value;
+            const cfg = difficultyConfig[difficulty] || difficultyConfig.medium;
+            stars = generateStars(cfg.count);
+            score = 0;
+            playerPos = { x: 10, y: 10 };
+            displayPos = { x: 10, y: 10 };
+            starEvents = [];
+            pathData = [];
+            startTime = performance.now();
+            lastStarTime = startTime;
+            duration = 0;
+            state = 'playing';
 
-    // Stars
-    stars.forEach(s => {
-        gctx.save();
-        gctx.translate(gridToPx(s.x), gridToPx(s.y));
-        gctx.font = `${cellPx * 1.3}px serif`;
-        gctx.textAlign = 'center';
-        gctx.textBaseline = 'middle';
-        gctx.globalAlpha = s.collected ? 0.15 : 1.0;
-        gctx.fillText('⭐', 0, 0);
-        gctx.restore();
-    });
+            setOverlay(false);
+            updateHud();
 
-    const isUserControlling = (liveCop !== null) || manualControl.up || manualControl.down || manualControl.left || manualControl.right || dragging;
-
-    // Player position (Foot glow)
-    if (isUserControlling || state === 'idle') {
-        const px = gridToPx(displayPos.x);
-        const py = gridToPx(displayPos.y);
-
-        const grad = gctx.createRadialGradient(px, py, 2, px, py, cellPx * 1.6);
-        grad.addColorStop(0, 'rgba(255,255,255,0.95)');
-        grad.addColorStop(0.35, 'rgba(120,220,255,0.85)');
-        grad.addColorStop(1, 'rgba(120,220,255,0)');
-        gctx.fillStyle = grad;
-        gctx.beginPath();
-        gctx.arc(px, py, cellPx * 1.6, 0, Math.PI * 2);
-        gctx.fill();
-
-        gctx.fillStyle = '#fff';
-        gctx.beginPath();
-        gctx.arc(px, py, 7, 0, Math.PI * 2);
-        gctx.fill();
-    } else if (state === 'playing') {
-        // Subtle prompt when waiting for patient to step on mat
-        gctx.fillStyle = 'rgba(255, 207, 63, 0.85)';
-        gctx.font = '600 16px sans-serif';
-        gctx.textAlign = 'center';
-        gctx.fillText('👣 Step onto the mat to start moving & collecting stars!', gameCanvas.width / 2, gameCanvas.height - 24);
-    }
-}
-
-// -------------------------------------------------------------
-// DRAW RIGHT: REAL-TIME PRESSURE VISUALIZATION HEATMAP
-// (Clinical thermal colormap: Deep Blue -> Cyan -> Green -> Yellow -> Orange -> Red)
-// -------------------------------------------------------------
-function getHeatColor(v) {
-    if (v <= 0) return 'rgba(255, 255, 255, 0.04)';
-    if (v < 25) {
-        // Deep blue to cyan
-        const t = v / 25;
-        return `rgba(0, ${Math.round(140 + 100 * t)}, 255, ${0.45 + 0.35 * t})`;
-    } else if (v < 55) {
-        // Cyan to bright green
-        const t = (v - 25) / 30;
-        return `rgba(${Math.round(46 * (1 - t))}, 230, ${Math.round(150 * (1 - t))}, ${0.75 + 0.2 * t})`;
-    } else if (v < 80) {
-        // Bright green to amber/yellow
-        const t = (v - 55) / 25;
-        return `rgba(255, ${Math.round(215 - 35 * (1 - t))}, 0, 0.92)`;
-    } else {
-        // Amber/yellow to hot blazing red
-        const t = Math.min(1.0, (v - 80) / 20);
-        return `rgba(255, ${Math.round(60 * (1 - t))}, ${Math.round(30 * (1 - t))}, 0.98)`;
-    }
-}
-
-function drawPressureHeatmap() {
-    vctx.clearRect(0, 0, vizCanvas.width, vizCanvas.height);
-
-    // Draw 20x20 pressure cells with continuous medical-grade thermal colormap
-    for (let r = 0; r < GRID_SIZE; r++) {
-        const srcR = flipY ? (GRID_SIZE - 1 - r) : r;
-        const rowMask = currentMatrix[srcR] || 0;
-        const rowMap = (currentPressureMap && currentPressureMap[srcR]) ? currentPressureMap[srcR] : null;
-
-        for (let c = 0; c < GRID_SIZE; c++) {
-            const srcC = flipX ? (GRID_SIZE - 1 - c) : c;
-            const isBitActive = (rowMask >> srcC) & 1;
-            const pVal = rowMap ? (rowMap[srcC] || 0) : 0;
-            const effectivePressure = Math.max(pVal, isBitActive ? 85 : 0);
-
-            const x = c * cellPx;
-            const y = r * cellPx;
-
-            if (effectivePressure > 0) {
-                vctx.fillStyle = getHeatColor(effectivePressure);
-                if (effectivePressure > 50) {
-                    vctx.shadowColor = effectivePressure > 75 ? '#ff3b30' : '#ffcf3f';
-                    vctx.shadowBlur = 8;
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (state === 'playing') {
+                    duration = (performance.now() - startTime) / 1000;
+                    document.getElementById('hud-time').textContent = duration.toFixed(1) + 's';
                 }
-                vctx.fillRect(x + 1, y + 1, cellPx - 2, cellPx - 2);
-                vctx.shadowBlur = 0;
-            } else {
-                vctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-                vctx.fillRect(x + 1, y + 1, cellPx - 2, cellPx - 2);
-            }
+            }, 100);
 
-            // Cell border
-            vctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-            vctx.lineWidth = 0.5;
-            vctx.strokeRect(x, y, cellPx, cellPx);
-        }
-    }
-
-    // Midline separator between Left Foot and Right Foot (Col 10)
-    vctx.strokeStyle = 'rgba(255, 207, 63, 0.4)';
-    vctx.lineWidth = 2;
-    vctx.setLineDash([4, 4]);
-    vctx.beginPath();
-    vctx.moveTo(10 * cellPx, 0);
-    vctx.lineTo(10 * cellPx, vizCanvas.height);
-    vctx.stroke();
-    vctx.setLineDash([]);
-
-    // COP Sway Trail History (last 35 points)
-    if (copHistory.length > 1) {
-        vctx.beginPath();
-        copHistory.forEach((pt, idx) => {
-            const hx = gridToPx(pt.x);
-            const hy = gridToPx(pt.y);
-            if (idx === 0) vctx.moveTo(hx, hy);
-            else vctx.lineTo(hx, hy);
-        });
-        vctx.strokeStyle = 'rgba(0, 255, 200, 0.55)';
-        vctx.lineWidth = 3;
-        vctx.stroke();
-
-        // Trail dots
-        copHistory.forEach((pt, idx) => {
-            const hx = gridToPx(pt.x);
-            const hy = gridToPx(pt.y);
-            const alpha = (idx + 1) / copHistory.length * 0.8;
-            vctx.fillStyle = `rgba(0, 255, 200, ${alpha})`;
-            vctx.beginPath();
-            vctx.arc(hx, hy, 3, 0, Math.PI * 2);
-            vctx.fill();
-        });
-    }
-
-    // Live Center of Pressure (COP) Pulsing Marker
-    if (liveCop) {
-        const cx = gridToPx(liveCop.x);
-        const cy = gridToPx(liveCop.y);
-
-        // Crosshairs
-        vctx.strokeStyle = '#ffff00';
-        vctx.lineWidth = 2;
-        vctx.beginPath();
-        vctx.moveTo(cx - 16, cy); vctx.lineTo(cx + 16, cy);
-        vctx.moveTo(cx, cy - 16); vctx.lineTo(cx, cy + 16);
-        vctx.stroke();
-
-        // Outer Glow Ring
-        vctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-        vctx.lineWidth = 2.5;
-        vctx.beginPath();
-        vctx.arc(cx, cy, 8, 0, Math.PI * 2);
-        vctx.stroke();
-
-        // Pulsing Red Core
-        vctx.fillStyle = '#ff1744';
-        vctx.shadowColor = '#ff1744';
-        vctx.shadowBlur = 12;
-        vctx.beginPath();
-        vctx.arc(cx, cy, 6, 0, Math.PI * 2);
-        vctx.fill();
-        vctx.shadowBlur = 0;
-    }
-}
-
-// -------------------------------------------------------------
-// MAIN ANIMATION LOOP
-// -------------------------------------------------------------
-function loop() {
-    const isUserControlling = (liveCop !== null) || manualControl.up || manualControl.down || manualControl.left || manualControl.right || dragging;
-
-    // Smooth target movement when actively controlled
-    if (isUserControlling) {
-        displayPos.x += (playerPos.x - displayPos.x) * 0.32;
-        displayPos.y += (playerPos.y - displayPos.y) * 0.32;
-    }
-
-    if (state === 'playing') {
-        if (manualControl.up) playerPos.y -= 0.18;
-        if (manualControl.down) playerPos.y += 0.18;
-        if (manualControl.left) playerPos.x -= 0.18;
-        if (manualControl.right) playerPos.x += 0.18;
-        playerPos.x = Math.max(0, Math.min(GRID_SIZE - 1, playerPos.x));
-        playerPos.y = Math.max(0, Math.min(GRID_SIZE - 1, playerPos.y));
-
-        // ONLY record path and check star collisions when the patient is ACTIVELY touching the mat or controlling
-        if (isUserControlling) {
-            pathData.push({ x: playerPos.x, y: playerPos.y, t: (performance.now() - startTime) / 1000 });
-            checkCollisions();
-        }
-        updateHud();
-
-        const cfg = difficultyConfig[difficulty];
-        const elapsed = (performance.now() - startTime) / 1000;
-        if (elapsed >= cfg.timeLimit) {
-            finishGame('timeout');
-        }
-    }
-
-    drawGame();
-    drawPressureHeatmap();
-    animFrame = requestAnimationFrame(loop);
-}
-
-// -------------------------------------------------------------
-// TELEMETRY & POLLING (SHARED REAL-TIME STREAM)
-// -------------------------------------------------------------
-let isPolling = false;
-
-async function pollFrame() {
-    if (isPolling) return;
-    isPolling = true;
-    try {
-        const resp = await fetch(FRAME_URL, { cache: 'no-store' });
-        const data = await resp.json();
-        const badge = document.getElementById('connection-badge');
-
-        if (data.connected) {
-            connected = true;
-            const portName = data.port ? ` (${data.port})` : '';
-            const hasTouch = data.touching && (data.active_count && data.active_count > 0);
-
-            if (hasTouch) {
-                const pVal = data.total_pressure ? ` — Total Load: ${Math.round(data.total_pressure)}` : '';
-                badge.textContent = `🟢 Mat Connected${portName}${pVal} (Active Touch: ${data.active_count} cells)`;
-                badge.className = 'connected';
-            } else {
-                badge.textContent = `🟢 Mat Connected${portName} — Ready (Stand on mat)`;
-                badge.className = 'connected';
-            }
-
-            // Sync Game Coordinates & Center of Pressure ONLY when touching
-            if (hasTouch && typeof data.x === 'number' && typeof data.y === 'number') {
-                let mappedX = data.x;
-                let mappedY = data.y;
-                if (flipX) mappedX = (GRID_SIZE - 1) - mappedX;
-                if (flipY) mappedY = (GRID_SIZE - 1) - mappedY;
-
-                playerPos.x = mappedX;
-                playerPos.y = mappedY;
-                liveCop = { x: mappedX, y: mappedY };
-
-                if (copHistory.length === 0 || Math.hypot(copHistory[copHistory.length - 1].x - mappedX, copHistory[copHistory.length - 1].y - mappedY) > 0.1) {
-                    copHistory.push({ x: mappedX, y: mappedY });
-                    if (copHistory.length > 35) copHistory.shift();
+            if (pathInterval) clearInterval(pathInterval);
+            pathInterval = setInterval(() => {
+                if (state === 'playing') {
+                    pathData.push({
+                        x: displayPos.x,
+                        y: displayPos.y,
+                        t: (performance.now() - startTime) / 1000
+                    });
                 }
-            } else {
-                liveCop = null;
-            }
-
-            // Sync Pressure Visualization Telemetry
-            currentTotalPressure = hasTouch ? (data.total_pressure || 0) : 0;
-            currentActiveCount = hasTouch ? (data.active_count || 0) : 0;
-            let lPct = data.left_pct !== undefined ? data.left_pct : 50.0;
-            let rPct = data.right_pct !== undefined ? data.right_pct : 50.0;
-            if (flipX) {
-                const temp = lPct;
-                lPct = rPct;
-                rPct = temp;
-            }
-            currentLeftPct = lPct;
-            currentRightPct = rPct;
-
-            if (data.matrix) currentMatrix = data.matrix;
-            if (data.pressure_map && data.pressure_map.length === 20) currentPressureMap = data.pressure_map;
-
-            // Update Right Cockpit UI elements
-            document.getElementById('viz-total').textContent = Math.round(currentTotalPressure);
-            document.getElementById('viz-active').textContent = `${currentActiveCount} / 400`;
-            if (liveCop) {
-                document.getElementById('viz-cop').textContent = `X: ${liveCop.x.toFixed(1)} | Y: ${liveCop.y.toFixed(1)}`;
-            } else {
-                document.getElementById('viz-cop').textContent = `X: -- | Y: --`;
-            }
-
-            document.getElementById('left-pct-label').textContent = `Left Foot: ${currentLeftPct.toFixed(1)}%`;
-            document.getElementById('right-pct-label').textContent = `Right Foot: ${currentRightPct.toFixed(1)}%`;
-            document.getElementById('meter-left').style.width = `${currentLeftPct}%`;
-            document.getElementById('meter-right').style.width = `${currentRightPct}%`;
-
-            // Update 20x20 bit inspector grid if open
-            updateSensorGrid();
-        } else {
-            connected = false;
-            badge.textContent = '⚠️ Mat not connected (select port above or use arrow keys)';
-            badge.className = 'disconnected';
-            liveCop = null;
+            }, 80);
         }
-    } catch (e) {
-        connected = false;
-        const badge = document.getElementById('connection-badge');
-        badge.textContent = '⚠️ Mat not connected (select port above or use arrow keys)';
-        badge.className = 'disconnected';
-        liveCop = null;
-    } finally {
-        isPolling = false;
-    }
-}
 
-// -------------------------------------------------------------
-// 20x20 SENSOR BIT MATRIX INSPECTOR
-// -------------------------------------------------------------
-const matrixInspector = document.getElementById('matrix-inspector');
-const sensorCellsContainer = document.getElementById('sensor-matrix-cells');
-const toggleInspectorBtn = document.getElementById('toggle-inspector-btn');
-const cellElements = [];
+        function endGame() {
+            state = 'ended';
+            if (timerInterval) clearInterval(timerInterval);
+            if (pathInterval) clearInterval(pathInterval);
 
-// Initialize 400 DOM cells once
-for (let i = 0; i < 400; i++) {
-    const div = document.createElement('div');
-    div.className = 'sensor-cell';
-    const r = Math.floor(i / 20);
-    const c = i % 20;
-    div.title = `Cell (${r}, ${c})`;
-    sensorCellsContainer.appendChild(div);
-    cellElements.push(div);
-}
+            const collected = stars.filter(s => s.collected).length;
 
-function updateSensorGrid() {
-    if (matrixInspector.style.display !== 'block') return;
-    for (let r = 0; r < 20; r++) {
-        const srcR = flipY ? (19 - r) : r;
-        const rowMask = currentMatrix[srcR] || 0;
-        const rowMap = (currentPressureMap && currentPressureMap[srcR]) ? currentPressureMap[srcR] : null;
-        for (let c = 0; c < 20; c++) {
-            const srcC = flipX ? (19 - c) : c;
-            const idx = r * 20 + c;
-            const pVal = rowMap ? (rowMap[srcC] || 0) : 0;
-            const isTouched = ((rowMask >> srcC) & 1) || (pVal > 10);
-            if (isTouched) {
-                cellElements[idx].classList.add('active');
-            } else {
-                cellElements[idx].classList.remove('active');
-            }
-        }
-    }
-}
-
-toggleInspectorBtn.textContent = '✖ Collapse Sensor Bit Matrix Inspector (400 Units)';
-
-toggleInspectorBtn.addEventListener('click', () => {
-    if (matrixInspector.style.display !== 'none') {
-        matrixInspector.style.display = 'none';
-        toggleInspectorBtn.textContent = '🔍 Expand 20x20 Sensor Cell Matrix Inspector (400 Units)';
-    } else {
-        matrixInspector.style.display = 'block';
-        toggleInspectorBtn.textContent = '✖ Collapse Sensor Bit Matrix Inspector (400 Units)';
-        updateSensorGrid();
-    }
-});
-
-// Zero Baseline Button handler with interactive Step-Off guidance
-const recalibrateZeroBtn = document.getElementById('recalibrate-zero-btn');
-if (recalibrateZeroBtn) {
-    recalibrateZeroBtn.addEventListener('click', async () => {
-        const badge = document.getElementById('connection-badge');
-        recalibrateZeroBtn.disabled = true;
-
-        badge.textContent = '⚠️ STEP OFF MAT: Please remove feet/weight from mat! Calibrating in 1s...';
-        badge.className = 'disconnected';
-
-        setTimeout(async () => {
-            badge.textContent = '🎯 Calibrating 400 sensors baseline... Keep mat empty...';
-            try {
-                await fetch(`/api/game/${patientId}/recalibrate/`, { method: 'POST' });
-                copHistory = [];
-                liveCop = null;
-                setTimeout(() => {
-                    badge.textContent = '✅ Mat Baseline Zeroed! Step onto the mat now to play!';
-                    badge.className = 'connected';
-                    recalibrateZeroBtn.disabled = false;
-                }, 1000);
-            } catch (e) {
-                console.error('Recalibrate error:', e);
-                recalibrateZeroBtn.disabled = false;
-            }
-        }, 1200);
-    });
-}
-
-// Sensitivity Threshold selector handler
-const matSensitivitySelect = document.getElementById('mat-sensitivity-select');
-if (matSensitivitySelect) {
-    matSensitivitySelect.addEventListener('change', async (e) => {
-        const th = parseInt(e.target.value);
-        const badge = document.getElementById('connection-badge');
-        const optText = e.target.options[e.target.selectedIndex].text;
-        try {
-            await fetch(`/api/game/${patientId}/threshold/`, {
+            fetch(SAVE_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ threshold: th })
-            });
-            copHistory = [];
-            liveCop = null;
-            badge.textContent = `⚡ Sensitivity updated: ${optText}!`;
-            badge.className = 'connected';
-            setTimeout(() => {
-                badge.textContent = '🟢 Mat Connected — Ready (Stand on mat)';
-            }, 1200);
-        } catch (err) {
-            console.error('Threshold error:', err);
+                body: JSON.stringify({
+                    duration_seconds: duration,
+                    difficulty: difficulty,
+                    target_count: stars.length,
+                    stars_collected: collected,
+                    score: score,
+                    path_data: pathData,
+                    star_events: starEvents,
+                })
+            }).catch(e => console.error(e));
+
+            const title = collected === stars.length ? "🌟 All Stars Collected! Great Job!" : "Time's Up!";
+            setOverlay(true, title, "You collected " + collected + " of " + stars.length + " stars in " + duration.toFixed(1) + "s. Final Score: " + score);
+            document.getElementById('start-btn').textContent = 'Play Again';
         }
-    });
-}
 
-// -------------------------------------------------------------
-// COM PORT & BRIDGE MANAGEMENT
-// -------------------------------------------------------------
-const gamePortSelect = document.getElementById('game-port-select');
-const gameRefreshBtn = document.getElementById('game-refresh-ports-btn');
-let isStartingBridge = false;
+        function checkCollisions() {
+            if (state !== 'playing') return;
+            const cfg = difficultyConfig[difficulty] || difficultyConfig.medium;
+            const hitRadius = cfg.radius + 0.45;
 
-async function startMatBridge(port) {
-    if (isStartingBridge) return;
-    isStartingBridge = true;
-    const badge = document.getElementById('connection-badge');
-    if (!connected) {
-        badge.textContent = `🔄 Connecting to mat on ${port || 'auto'}...`;
-        badge.className = 'disconnected';
-    }
-    try {
-        const resp = await fetch(`/api/game/${patientId}/start_bridge/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ port: port || 'auto' })
+            stars.forEach((s, i) => {
+                if (s.collected) return;
+                const d = Math.hypot(s.x - displayPos.x, s.y - displayPos.y);
+                if (d <= hitRadius) {
+                    s.collected = true;
+                    score += 100;
+                    const now = performance.now();
+                    starEvents.push({
+                        index: i,
+                        x: s.x,
+                        y: s.y,
+                        t: (now - startTime) / 1000,
+                        time_to_reach: (now - lastStarTime) / 1000
+                    });
+                    lastStarTime = now;
+                    updateHud();
+
+                    if (stars.every(st => st.collected)) {
+                        setTimeout(endGame, 200);
+                    }
+                }
+            });
+        }
+
+        function updateHud() {
+            document.getElementById('hud-score').textContent = score;
+            const collected = stars.filter(s => s.collected).length;
+            document.getElementById('hud-stars').textContent = collected + " / " + stars.length;
+        }
+
+        function drawGame() {
+            const W = gameCanvas.width;
+            const H = gameCanvas.height;
+            const cellW = W / GRID_SIZE;
+            const cellH = H / GRID_SIZE;
+
+            gctx.fillStyle = '#090d16';
+            gctx.fillRect(0, 0, W, H);
+
+            // Subdued grid
+            gctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            gctx.lineWidth = 1;
+            for (let i = 0; i <= GRID_SIZE; i++) {
+                gctx.beginPath();
+                gctx.moveTo(i * cellW, 0); gctx.lineTo(i * cellW, H); gctx.stroke();
+                gctx.beginPath();
+                gctx.moveTo(0, i * cellH); gctx.lineTo(W, i * cellH); gctx.stroke();
+            }
+
+            // Draw Stars
+            const timeNow = performance.now() / 1000;
+            stars.forEach((s, i) => {
+                if (s.collected) return;
+                const cx = (s.x + 0.5) * cellW;
+                const cy = (s.y + 0.5) * cellH;
+                const pulse = 1 + 0.08 * Math.sin(timeNow * 4 + i);
+
+                gctx.save();
+                gctx.translate(cx, cy);
+                gctx.scale(pulse, pulse);
+
+                gctx.fillStyle = 'rgba(255, 207, 63, 0.25)';
+                gctx.beginPath(); gctx.arc(0, 0, cellW * 0.9, 0, Math.PI * 2); gctx.fill();
+
+                gctx.fillStyle = '#ffcf3f';
+                gctx.font = '24px sans-serif';
+                gctx.textAlign = 'center';
+                gctx.textBaseline = 'middle';
+                gctx.fillText('⭐', 0, 0);
+                gctx.restore();
+            });
+
+            // Player Dot
+            const px = (displayPos.x + 0.5) * cellW;
+            const py = (displayPos.y + 0.5) * cellH;
+
+            gctx.fillStyle = 'rgba(99, 102, 241, 0.35)';
+            gctx.beginPath(); gctx.arc(px, py, 22, 0, Math.PI * 2); gctx.fill();
+
+            gctx.fillStyle = '#818cf8';
+            gctx.beginPath(); gctx.arc(px, py, 10, 0, Math.PI * 2); gctx.fill();
+        }
+
+        function loop() {
+            displayPos.x += (playerPos.x - displayPos.x) * 0.65;
+            displayPos.y += (playerPos.y - displayPos.y) * 0.65;
+
+            if (state === 'playing') {
+                checkCollisions();
+            }
+
+            drawGame();
+            requestAnimationFrame(loop);
+        }
+
+        function posFromEvent(e) {
+            const rect = gameCanvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: Math.max(0, Math.min(GRID_SIZE - 1, (clientX - rect.left) / (rect.width / GRID_SIZE))),
+                y: Math.max(0, Math.min(GRID_SIZE - 1, (clientY - rect.top) / (rect.height / GRID_SIZE)))
+            };
+        }
+
+        gameCanvas.addEventListener('mouseenter', (e) => {
+            mouseHovering = true;
+            playerPos = posFromEvent(e);
+            displayPos.x = playerPos.x;
+            displayPos.y = playerPos.y;
         });
-        const result = await resp.json();
-        if (!result.success && result.error) {
-            badge.textContent = `⚠️ Connection error: ${result.error}`;
-            badge.className = 'disconnected';
-        }
-    } catch (e) {
-        console.error('Bridge start error:', e);
-    } finally {
-        isStartingBridge = false;
-    }
-}
+        gameCanvas.addEventListener('mousemove', (e) => {
+            mouseHovering = true;
+            playerPos = posFromEvent(e);
+        });
+        gameCanvas.addEventListener('touchstart', (e) => {
+            playerPos = posFromEvent(e);
+        });
+        gameCanvas.addEventListener('touchmove', (e) => {
+            playerPos = posFromEvent(e);
+        });
 
-async function loadGamePorts() {
-    if (!gamePortSelect) return;
-    const currentVal = gamePortSelect.value;
-    try {
-        const res = await fetch('/api/ports/');
-        const data = await res.json();
-        if (data.success && data.ports) {
-            gamePortSelect.innerHTML = '<option value="auto">⚡ Auto-detect Port</option>';
-            data.ports.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.device;
-                opt.textContent = `🔌 ${p.description}`;
-                if (p.device === currentVal) opt.selected = true;
-                gamePortSelect.appendChild(opt);
-            });
-        }
-    } catch (e) {}
-}
+        document.getElementById('start-btn').addEventListener('click', startGame);
 
-if (gameRefreshBtn) {
-    gameRefreshBtn.addEventListener('click', loadGamePorts);
-}
-
-if (gamePortSelect) {
-    gamePortSelect.addEventListener('change', () => {
-        startMatBridge(gamePortSelect.value);
-    });
-}
-
-document.getElementById('start-btn').addEventListener('click', () => {
-    if (!connected) {
-        const selectedPort = gamePortSelect ? gamePortSelect.value : 'auto';
-        startMatBridge(selectedPort);
-    }
-    startGame();
-});
-
-// Keyboard fallback
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowUp') manualControl.up = true;
-    if (e.key === 'ArrowDown') manualControl.down = true;
-    if (e.key === 'ArrowLeft') manualControl.left = true;
-    if (e.key === 'ArrowRight') manualControl.right = true;
-});
-window.addEventListener('keyup', (e) => {
-    if (e.key === 'ArrowUp') manualControl.up = false;
-    if (e.key === 'ArrowDown') manualControl.down = false;
-    if (e.key === 'ArrowLeft') manualControl.left = false;
-    if (e.key === 'ArrowRight') manualControl.right = false;
-});
-
-// Mouse/touch fallback for game canvas
-function posFromEvent(e) {
-    const rect = gameCanvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return {
-        x: Math.max(0, Math.min(GRID_SIZE - 1, (clientX - rect.left) / (rect.width / GRID_SIZE))),
-        y: Math.max(0, Math.min(GRID_SIZE - 1, (clientY - rect.top) / (rect.height / GRID_SIZE))),
-    };
-}
-gameCanvas.addEventListener('mousedown', (e) => { dragging = true; if (!liveCop) playerPos = posFromEvent(e); });
-window.addEventListener('mouseup', () => dragging = false);
-gameCanvas.addEventListener('mousemove', (e) => { if (dragging && !liveCop) playerPos = posFromEvent(e); });
-gameCanvas.addEventListener('touchstart', (e) => { if (!liveCop) playerPos = posFromEvent(e); });
-gameCanvas.addEventListener('touchmove', (e) => { if (!liveCop) playerPos = posFromEvent(e); });
-
-// Auto-start bridge on page load
-const initialPort = gamePortSelect ? gamePortSelect.value : 'auto';
-startMatBridge(initialPort);
-
-pollFrame();
-pollTimer = setInterval(pollFrame, 50);
-loop();
-</script>
+        drawGame();
+        loop();
+    </script>
 </body>
 </html>

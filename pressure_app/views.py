@@ -31,6 +31,7 @@ def loading_page(request):
     patient_id = request.GET.get('patient_id')
     return render(request, 'pressure_app/loading.html', {'patient_id': patient_id})
 
+@csrf_exempt
 def doctor_register(request):
     if request.method == 'POST':
         try:
@@ -69,6 +70,7 @@ def doctor_register(request):
     return JsonResponse({'error': 'Invalid method'}, status=405)
 
 
+@csrf_exempt
 def doctor_login(request):
     if request.method == 'POST':
         try:
@@ -610,6 +612,25 @@ def get_serial_ports(request):
     return JsonResponse({'success': True, 'ports': ports})
 
 
+
+def mat_page(request, patient_id):
+    """Render the dedicated Real-Time Pressure Mat Heatmap visualizer & recorder."""
+    patient = get_object_or_404(Patient, patient_id=patient_id)
+    ports = get_available_ports()
+    selected_port = request.GET.get('port', 'auto')
+    if selected_port == 'auto' and ports:
+        for p in ports:
+            dev = p.get('device', '').lower()
+            desc = p.get('description', '').lower()
+            if 'usb' in dev or 'cp210' in desc or 'ch340' in desc or 'uart' in desc:
+                selected_port = p['device']
+                break
+    return render(request, 'pressure_app/pressure_mat.html', {
+        'patient': patient,
+        'ports': ports,
+        'selected_port': selected_port
+    })
+
 def game_page(request, patient_id):
     """Render the 'Collect the Stars' game for a given patient."""
     patient = get_object_or_404(Patient, patient_id=patient_id)
@@ -768,7 +789,7 @@ def api_game_threshold(request, patient_id=None):
     try:
         data = json.loads(request.body)
         th = int(data.get('threshold', 15))
-        th = max(5, min(200, th))
+        th = max(5, min(400, th))
         base_dir = Path(__file__).parent.parent
         if patient_id:
             cmd_file = base_dir / "pressure_app" / f"cmd_{patient_id}.txt"
@@ -830,7 +851,7 @@ def api_game_frame(request, patient_id=None):
                 'touching': data.get('touching', False),
                 'port': data.get('port'),
                 'server_time': now,
-                'connected': True,
+                'connected': data.get('connected', True),
             }
             # Always cache globally as well as for the specific patient
             cache.set('latest_mat_frame', frame, timeout=GAME_FRAME_CACHE_TIMEOUT)
@@ -849,10 +870,12 @@ def api_game_frame(request, patient_id=None):
             frame = latest
 
     if not frame or (now - frame.get('server_time', 0) > 3.5):
-        return JsonResponse({'connected': False})
+        return JsonResponse({'success': False, 'connected': False})
 
-    frame['connected'] = True
-    return JsonResponse(frame)
+    res = dict(frame)
+    res['success'] = True
+    res['connected'] = frame.get('connected', True)
+    return JsonResponse(res)
 
 
 @csrf_exempt

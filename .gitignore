@@ -24,3 +24,9 @@ ENV/
 *.log
 bridge_*.log
 esp32_firmware/
+
+# Diagnostic temporary files
+test_press/
+test_raw_mat/
+pressure_mat_*.png
+cmd_*.txt

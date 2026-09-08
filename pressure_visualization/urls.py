@@ -45,6 +45,7 @@ urlpatterns = [
     path('api/mat/frame/', views.api_game_frame, name='api_mat_frame'),
     path('api/mat/recalibrate/', views.api_mat_recalibrate, name='api_mat_recalibrate_global'),
     path('api/mat/threshold/', views.api_game_threshold, name='api_game_threshold_global'),
+    path('mat/<str:patient_id>/', views.mat_page, name='mat_page'),
     path('game/<str:patient_id>/', views.game_page, name='game_page'),
     path('api/game/<str:patient_id>/start_bridge/', views.api_start_game_bridge, name='api_start_game_bridge'),
     path('api/game/<str:patient_id>/stop_bridge/', views.api_stop_game_bridge, name='api_stop_game_bridge'),
