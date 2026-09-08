@@ -630,7 +630,7 @@ def game_page(request, patient_id):
 
 
 @csrf_exempt
-def api_start_game_bridge(request, patient_id):
+def api_start_game_bridge(request, patient_id=None):
     """
     POST: Start or restart game_bridge.py for patient_id on specified COM port.
     Body: {"port": "COM3"} or {"port": "auto"}
@@ -650,22 +650,27 @@ def api_start_game_bridge(request, patient_id):
         if not port:
             port = request.GET.get('port')
 
-        patient_key = str(patient_id)
+        patient_key = str(patient_id) if patient_id else 'active'
         target_port = port if port else 'auto'
 
-        # Check if this exact patient is already running on the requested port
-        old_proc = BRIDGE_PROCESSES.get(patient_key)
-        curr_port = BRIDGE_PORTS.get(patient_key)
-        if old_proc and old_proc.poll() is None:
-            if curr_port == target_port or (target_port == 'auto' and curr_port):
-                return JsonResponse({
-                    'success': True,
-                    'patient_id': patient_id,
-                    'port': curr_port,
-                    'message': f"Mat bridge already running on {curr_port}"
-                })
+        now = time.time()
+        latest_frame = cache.get('latest_mat_frame')
+        is_actively_streaming = latest_frame and (now - latest_frame.get('server_time', 0) <= 2.5)
+        streaming_port = latest_frame.get('port') if latest_frame else None
 
-        # Terminate any running bridge processes on the system to prevent serial port conflict
+        # Check if a bridge process is currently running
+        active_procs = [p for p in BRIDGE_PROCESSES.values() if p and p.poll() is None]
+
+        # If the bridge is ALREADY actively streaming on the requested port (or any port if target is auto):
+        if is_actively_streaming and (target_port == 'auto' or streaming_port == target_port or not streaming_port):
+            return JsonResponse({
+                'success': True,
+                'patient_id': patient_id,
+                'port': streaming_port or target_port,
+                'message': f"Mat bridge actively streaming on {streaming_port or target_port}"
+            })
+
+        # Otherwise, cleanly terminate existing bridge processes to free the serial port
         for pkey, proc in list(BRIDGE_PROCESSES.items()):
             if proc and proc.poll() is None:
                 try:
@@ -714,8 +719,8 @@ def api_start_game_bridge(request, patient_id):
             stderr=subprocess.STDOUT
         )
 
-        BRIDGE_PROCESSES[patient_key] = proc
-        BRIDGE_PORTS[patient_key] = target_port
+        BRIDGE_PROCESSES['main'] = proc
+        BRIDGE_PORTS['main'] = target_port
 
         # Wait briefly to confirm it didn't exit immediately with an error
         time.sleep(0.4)
@@ -739,34 +744,59 @@ def api_start_game_bridge(request, patient_id):
 
 
 @csrf_exempt
-def api_mat_recalibrate(request, patient_id):
+def api_mat_recalibrate(request, patient_id=None):
     """Trigger zero-baseline calibration on the ESP32 matrix by creating a command signal."""
     base_dir = Path(__file__).parent.parent
-    cmd_file = base_dir / "pressure_app" / f"cmd_{patient_id}.txt"
     try:
-        with open(cmd_file, "w") as f:
-            f.write("c")
+        if patient_id:
+            cmd_file = base_dir / "pressure_app" / f"cmd_{patient_id}.txt"
+            with open(cmd_file, "w") as f:
+                f.write("c\n")
+        global_cmd = base_dir / "pressure_app" / "cmd_mat.txt"
+        with open(global_cmd, "w") as f:
+            f.write("c\n")
         return JsonResponse({'success': True, 'message': 'Mat zero recalibration signal sent'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @csrf_exempt
-def api_stop_game_bridge(request, patient_id):
-    """Stop running game bridge for patient_id."""
-    patient_key = str(patient_id)
-    proc = BRIDGE_PROCESSES.get(patient_key)
-    if proc and proc.poll() is None:
-        try:
-            proc.terminate()
-            proc.wait(timeout=1.0)
-        except Exception:
+def api_game_threshold(request, patient_id=None):
+    """Dynamically set the touch sensitivity threshold on the ESP32 matrix."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
+    try:
+        data = json.loads(request.body)
+        th = int(data.get('threshold', 15))
+        th = max(5, min(200, th))
+        base_dir = Path(__file__).parent.parent
+        if patient_id:
+            cmd_file = base_dir / "pressure_app" / f"cmd_{patient_id}.txt"
+            with open(cmd_file, "w") as f:
+                f.write(f"t{th}\n")
+        global_cmd = base_dir / "pressure_app" / "cmd_mat.txt"
+        with open(global_cmd, "w") as f:
+            f.write(f"t{th}\n")
+        return JsonResponse({'success': True, 'threshold': th})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+def api_stop_game_bridge(request, patient_id=None):
+    """Stop running game bridge."""
+    for pkey, proc in list(BRIDGE_PROCESSES.items()):
+        if proc and proc.poll() is None:
             try:
-                proc.kill()
+                proc.terminate()
+                proc.wait(timeout=1.0)
             except Exception:
-                pass
-        BRIDGE_PROCESSES.pop(patient_key, None)
-        BRIDGE_PORTS.pop(patient_key, None)
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+    BRIDGE_PROCESSES.clear()
+    BRIDGE_PORTS.clear()
     try:
         subprocess.run(["pkill", "-f", "game_bridge.py"], capture_output=True)
     except Exception:
@@ -775,13 +805,14 @@ def api_stop_game_bridge(request, patient_id):
 
 
 @csrf_exempt
-def api_game_frame(request, patient_id):
+def api_game_frame(request, patient_id=None):
     """
     POST: called by game_bridge.py with the latest COP/pressure reading.
           body: {"x": <0-19>, "y": <0-19>, "left_pct": .., "right_pct": .., "total_pressure": ..}
     GET:  polled by the browser game to get the latest reading for this patient.
     """
-    cache_key = f'game_frame_{patient_id}'
+    now = time.time()
+    cache_key = f'game_frame_{patient_id}' if patient_id else 'game_frame_default'
 
     if request.method == 'POST':
         try:
@@ -795,19 +826,31 @@ def api_game_frame(request, patient_id):
                 'peak_pressure': data.get('peak_pressure', 0),
                 'active_count': data.get('active_count', 0),
                 'matrix': data.get('matrix', [0] * 20),
+                'pressure_map': data.get('pressure_map', []),
                 'touching': data.get('touching', False),
                 'port': data.get('port'),
-                'server_time': time.time(),
+                'server_time': now,
+                'connected': True,
             }
-            cache.set(cache_key, frame, timeout=GAME_FRAME_CACHE_TIMEOUT)
+            # Always cache globally as well as for the specific patient
+            cache.set('latest_mat_frame', frame, timeout=GAME_FRAME_CACHE_TIMEOUT)
+            if patient_id:
+                cache.set(cache_key, frame, timeout=GAME_FRAME_CACHE_TIMEOUT)
             return JsonResponse({'success': True})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
-    # GET
-    frame = cache.get(cache_key)
-    if not frame:
+    # GET: Return patient-specific frame if fresh, or fallback to global live mat stream
+    frame = cache.get(cache_key) if patient_id else None
+    latest = cache.get('latest_mat_frame')
+
+    if latest and (now - latest.get('server_time', 0) <= 3.5):
+        if not frame or (frame.get('server_time', 0) < latest.get('server_time', 0)):
+            frame = latest
+
+    if not frame or (now - frame.get('server_time', 0) > 3.5):
         return JsonResponse({'connected': False})
+
     frame['connected'] = True
     return JsonResponse(frame)
 

@@ -385,9 +385,16 @@
                 {% endfor %}
             </select>
             <button id="game-refresh-ports-btn" type="button" class="btn-icon" title="Refresh Available Ports">🔄</button>
-            <button id="recalibrate-zero-btn" type="button" class="btn-icon" style="background: #f59e0b; color: #1e1b4b; font-weight: 700;" title="Zero / Calibrate baseline across all 400 sensors">
+            <button id="recalibrate-zero-btn" type="button" class="btn-icon" style="background: #f59e0b; color: #1e1b4b; font-weight: 700;" title="Zero / Calibrate baseline across all 400 sensors (Keep mat empty)">
                 🎯 Zero Mat Baseline
             </button>
+            <label for="mat-sensitivity-select" style="margin-left: 8px; font-weight: 600; font-size: 13px;">⚡ Sensitivity:</label>
+            <select id="mat-sensitivity-select" style="padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); background: #1e1b4b; color: #ffcf3f; font-weight: 700; font-size: 13px;" title="Adjust touch sensitivity threshold">
+                <option value="12">Ultra High (12) - Feather Touch</option>
+                <option value="18" selected>High (18) - Recommended</option>
+                <option value="28">Medium (28) - Normal Gait</option>
+                <option value="40">Firm (40) - Heavy Steps</option>
+            </select>
         </div>
     </header>
 
@@ -519,7 +526,8 @@ let dragging = false;
 
 // Real-time Pressure Visualization variables
 let currentMatrix = new Array(20).fill(0); // 20 row bitmasks
-let copHistory = []; // last 30 positions [(x, y), ...]
+let currentPressureMap = Array.from({ length: 20 }, () => new Array(20).fill(0));
+let copHistory = []; // last 35 positions [(x, y), ...]
 let liveCop = null;
 let currentLeftPct = 50.0;
 let currentRightPct = 50.0;
@@ -601,10 +609,13 @@ function finishGame(reason) {
 
 function checkCollisions() {
     const cfg = difficultyConfig[difficulty];
+    const hitRadius = cfg.radius + 0.35; // Forgiving hit radius matching natural foot COP
     stars.forEach((s, i) => {
         if (s.collected) return;
-        const d = Math.hypot(s.x - playerPos.x, s.y - playerPos.y);
-        if (d <= cfg.radius) {
+        const d1 = Math.hypot(s.x - playerPos.x, s.y - playerPos.y);
+        const d2 = Math.hypot(s.x - displayPos.x, s.y - displayPos.y);
+        const d = Math.min(d1, d2);
+        if (d <= hitRadius) {
             s.collected = true;
             score += 100;
             const now = performance.now();
@@ -657,13 +668,13 @@ function drawGame() {
     const px = gridToPx(displayPos.x);
     const py = gridToPx(displayPos.y);
 
-    const grad = gctx.createRadialGradient(px, py, 2, px, py, cellPx * 1.5);
+    const grad = gctx.createRadialGradient(px, py, 2, px, py, cellPx * 1.6);
     grad.addColorStop(0, 'rgba(255,255,255,0.95)');
     grad.addColorStop(0.35, 'rgba(120,220,255,0.85)');
     grad.addColorStop(1, 'rgba(120,220,255,0)');
     gctx.fillStyle = grad;
     gctx.beginPath();
-    gctx.arc(px, py, cellPx * 1.5, 0, Math.PI * 2);
+    gctx.arc(px, py, cellPx * 1.6, 0, Math.PI * 2);
     gctx.fill();
 
     gctx.fillStyle = '#fff';
@@ -674,33 +685,60 @@ function drawGame() {
 
 // -------------------------------------------------------------
 // DRAW RIGHT: REAL-TIME PRESSURE VISUALIZATION HEATMAP
-// (Clinical colormap: White -> Blue -> Cyan -> Green -> Yellow -> Red)
+// (Clinical thermal colormap: Deep Blue -> Cyan -> Green -> Yellow -> Orange -> Red)
 // -------------------------------------------------------------
+function getHeatColor(v) {
+    if (v <= 0) return 'rgba(255, 255, 255, 0.04)';
+    if (v < 25) {
+        // Deep blue to cyan
+        const t = v / 25;
+        return `rgba(0, ${Math.round(140 + 100 * t)}, 255, ${0.45 + 0.35 * t})`;
+    } else if (v < 55) {
+        // Cyan to bright green
+        const t = (v - 25) / 30;
+        return `rgba(${Math.round(46 * (1 - t))}, 230, ${Math.round(150 * (1 - t))}, ${0.75 + 0.2 * t})`;
+    } else if (v < 80) {
+        // Bright green to amber/yellow
+        const t = (v - 55) / 25;
+        return `rgba(255, ${Math.round(215 - 35 * (1 - t))}, 0, 0.92)`;
+    } else {
+        // Amber/yellow to hot blazing red
+        const t = Math.min(1.0, (v - 80) / 20);
+        return `rgba(255, ${Math.round(60 * (1 - t))}, ${Math.round(30 * (1 - t))}, 0.98)`;
+    }
+}
+
 function drawPressureHeatmap() {
     vctx.clearRect(0, 0, vizCanvas.width, vizCanvas.height);
 
-    // Draw 20x20 pressure cells
+    // Draw 20x20 pressure cells with continuous medical-grade thermal colormap
     for (let r = 0; r < GRID_SIZE; r++) {
         const rowMask = currentMatrix[r] || 0;
+        const rowMap = (currentPressureMap && currentPressureMap[r]) ? currentPressureMap[r] : null;
+
         for (let c = 0; c < GRID_SIZE; c++) {
-            const isTouched = (rowMask >> c) & 1;
+            const isBitActive = (rowMask >> c) & 1;
+            const pVal = rowMap ? (rowMap[c] || 0) : 0;
+            const effectivePressure = Math.max(pVal, isBitActive ? 85 : 0);
+
             const x = c * cellPx;
             const y = r * cellPx;
 
-            if (isTouched) {
-                // High contrast clinical heat gradient
-                vctx.fillStyle = '#ff2a2a'; // Active touch red
-                vctx.shadowColor = '#ff5722';
-                vctx.shadowBlur = 8;
+            if (effectivePressure > 0) {
+                vctx.fillStyle = getHeatColor(effectivePressure);
+                if (effectivePressure > 50) {
+                    vctx.shadowColor = effectivePressure > 75 ? '#ff3b30' : '#ffcf3f';
+                    vctx.shadowBlur = 8;
+                }
                 vctx.fillRect(x + 1, y + 1, cellPx - 2, cellPx - 2);
                 vctx.shadowBlur = 0;
             } else {
-                vctx.fillStyle = 'rgba(255,255,255,0.04)';
+                vctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
                 vctx.fillRect(x + 1, y + 1, cellPx - 2, cellPx - 2);
             }
 
             // Cell border
-            vctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            vctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
             vctx.lineWidth = 0.5;
             vctx.strokeRect(x, y, cellPx, cellPx);
         }
@@ -716,7 +754,7 @@ function drawPressureHeatmap() {
     vctx.stroke();
     vctx.setLineDash([]);
 
-    // COP Sway Trail History (last 25 points)
+    // COP Sway Trail History (last 35 points)
     if (copHistory.length > 1) {
         vctx.beginPath();
         copHistory.forEach((pt, idx) => {
@@ -725,18 +763,18 @@ function drawPressureHeatmap() {
             if (idx === 0) vctx.moveTo(hx, hy);
             else vctx.lineTo(hx, hy);
         });
-        vctx.strokeStyle = 'rgba(0, 255, 200, 0.45)';
-        vctx.lineWidth = 2.5;
+        vctx.strokeStyle = 'rgba(0, 255, 200, 0.55)';
+        vctx.lineWidth = 3;
         vctx.stroke();
 
         // Trail dots
         copHistory.forEach((pt, idx) => {
             const hx = gridToPx(pt.x);
             const hy = gridToPx(pt.y);
-            const alpha = (idx + 1) / copHistory.length * 0.7;
+            const alpha = (idx + 1) / copHistory.length * 0.8;
             vctx.fillStyle = `rgba(0, 255, 200, ${alpha})`;
             vctx.beginPath();
-            vctx.arc(hx, hy, 2.5, 0, Math.PI * 2);
+            vctx.arc(hx, hy, 3, 0, Math.PI * 2);
             vctx.fill();
         });
     }
@@ -748,23 +786,27 @@ function drawPressureHeatmap() {
 
         // Crosshairs
         vctx.strokeStyle = '#ffff00';
-        vctx.lineWidth = 1.5;
+        vctx.lineWidth = 2;
         vctx.beginPath();
-        vctx.moveTo(cx - 14, cy); vctx.lineTo(cx + 14, cy);
-        vctx.moveTo(cx, cy - 14); vctx.lineTo(cx, cy + 14);
+        vctx.moveTo(cx - 16, cy); vctx.lineTo(cx + 16, cy);
+        vctx.moveTo(cx, cy - 16); vctx.lineTo(cx, cy + 16);
         vctx.stroke();
 
-        // Pulsing Circle
-        vctx.fillStyle = '#ff0033';
+        // Outer Glow Ring
+        vctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        vctx.lineWidth = 2.5;
+        vctx.beginPath();
+        vctx.arc(cx, cy, 8, 0, Math.PI * 2);
+        vctx.stroke();
+
+        // Pulsing Red Core
+        vctx.fillStyle = '#ff1744';
+        vctx.shadowColor = '#ff1744';
+        vctx.shadowBlur = 12;
         vctx.beginPath();
         vctx.arc(cx, cy, 6, 0, Math.PI * 2);
         vctx.fill();
-
-        vctx.strokeStyle = '#ffffff';
-        vctx.lineWidth = 2;
-        vctx.beginPath();
-        vctx.arc(cx, cy, 6, 0, Math.PI * 2);
-        vctx.stroke();
+        vctx.shadowBlur = 0;
     }
 }
 
@@ -777,8 +819,8 @@ function loop() {
     displayPos.y += (playerPos.y - displayPos.y) * 0.28;
 
     if (state === 'playing') {
-        // Fallback manual controls when mat is not physically connected
-        if (!connected) {
+        // Fallback manual controls when mat is not physically connected or no active touch
+        if (!connected || !liveCop) {
             const speed = 0.18;
             if (manualControl.up) playerPos.y -= speed;
             if (manualControl.down) playerPos.y += speed;
@@ -807,7 +849,11 @@ function loop() {
 // -------------------------------------------------------------
 // TELEMETRY & POLLING (SHARED REAL-TIME STREAM)
 // -------------------------------------------------------------
+let isPolling = false;
+
 async function pollFrame() {
+    if (isPolling) return;
+    isPolling = true;
     try {
         const resp = await fetch(FRAME_URL, { cache: 'no-store' });
         const data = await resp.json();
@@ -816,8 +862,9 @@ async function pollFrame() {
         if (data.connected) {
             connected = true;
             const portName = data.port ? ` (${data.port})` : '';
+            const hasTouch = data.touching || (data.active_count && data.active_count > 0);
 
-            if (data.touching) {
+            if (hasTouch) {
                 const pVal = data.total_pressure ? ` — Total Load: ${Math.round(data.total_pressure)}` : '';
                 badge.textContent = `🟢 Mat Connected${portName}${pVal} (Active Touch)`;
                 badge.className = 'connected';
@@ -826,15 +873,17 @@ async function pollFrame() {
                 badge.className = 'connected';
             }
 
-            // Sync Game Coordinates
+            // Sync Game Coordinates & Center of Pressure
             if (typeof data.x === 'number' && typeof data.y === 'number') {
                 playerPos.x = data.x;
                 playerPos.y = data.y;
                 liveCop = { x: data.x, y: data.y };
 
-                copHistory.push({ x: data.x, y: data.y });
-                if (copHistory.length > 25) copHistory.shift();
-            } else {
+                if (copHistory.length === 0 || Math.hypot(copHistory[copHistory.length - 1].x - data.x, copHistory[copHistory.length - 1].y - data.y) > 0.1) {
+                    copHistory.push({ x: data.x, y: data.y });
+                    if (copHistory.length > 35) copHistory.shift();
+                }
+            } else if (!hasTouch) {
                 liveCop = null;
             }
 
@@ -844,6 +893,7 @@ async function pollFrame() {
             currentLeftPct = data.left_pct !== undefined ? data.left_pct : 50.0;
             currentRightPct = data.right_pct !== undefined ? data.right_pct : 50.0;
             if (data.matrix) currentMatrix = data.matrix;
+            if (data.pressure_map && data.pressure_map.length === 20) currentPressureMap = data.pressure_map;
 
             // Update Right Cockpit UI elements
             document.getElementById('viz-total').textContent = Math.round(currentTotalPressure);
@@ -871,6 +921,8 @@ async function pollFrame() {
         const badge = document.getElementById('connection-badge');
         badge.textContent = '⚠️ Mat not connected (select port above or use arrow keys)';
         badge.className = 'disconnected';
+    } finally {
+        isPolling = false;
     }
 }
 
@@ -897,9 +949,11 @@ function updateSensorGrid() {
     if (matrixInspector.style.display !== 'block') return;
     for (let r = 0; r < 20; r++) {
         const rowMask = currentMatrix[r] || 0;
+        const rowMap = (currentPressureMap && currentPressureMap[r]) ? currentPressureMap[r] : null;
         for (let c = 0; c < 20; c++) {
             const idx = r * 20 + c;
-            const isTouched = (rowMask >> c) & 1;
+            const pVal = rowMap ? (rowMap[c] || 0) : 0;
+            const isTouched = ((rowMask >> c) & 1) || (pVal > 10);
             if (isTouched) {
                 cellElements[idx].classList.add('active');
             } else {
@@ -922,20 +976,52 @@ toggleInspectorBtn.addEventListener('click', () => {
     }
 });
 
-// Zero Baseline Button handler
+// Zero Baseline Button handler with interactive Step-Off guidance
 const recalibrateZeroBtn = document.getElementById('recalibrate-zero-btn');
 if (recalibrateZeroBtn) {
     recalibrateZeroBtn.addEventListener('click', async () => {
         const badge = document.getElementById('connection-badge');
-        badge.textContent = '🎯 Zeroing baseline across all 400 sensors... Please keep mat clear';
-        badge.className = 'connected';
+        recalibrateZeroBtn.disabled = true;
+
+        badge.textContent = '⚠️ STEP OFF MAT: Please remove feet/weight from mat! Calibrating in 2s...';
+        badge.className = 'disconnected';
+
+        setTimeout(async () => {
+            badge.textContent = '🎯 Calibrating 400 sensors baseline... Keep mat empty...';
+            try {
+                await fetch(`/api/game/${patientId}/recalibrate/`, { method: 'POST' });
+                setTimeout(() => {
+                    badge.textContent = '✅ Mat Baseline Zeroed! Step onto the mat now to play!';
+                    badge.className = 'connected';
+                    recalibrateZeroBtn.disabled = false;
+                }, 1200);
+            } catch (e) {
+                console.error('Recalibrate error:', e);
+                recalibrateZeroBtn.disabled = false;
+            }
+        }, 1500);
+    });
+}
+
+// Sensitivity Threshold selector handler
+const matSensitivitySelect = document.getElementById('mat-sensitivity-select');
+if (matSensitivitySelect) {
+    matSensitivitySelect.addEventListener('change', async (e) => {
+        const th = parseInt(e.target.value);
+        const badge = document.getElementById('connection-badge');
         try {
-            await fetch(`/api/game/${patientId}/recalibrate/`, { method: 'POST' });
+            await fetch(`/api/game/${patientId}/threshold/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ threshold: th })
+            });
+            badge.textContent = `⚡ Sensitivity updated to threshold ${th}!`;
+            badge.className = 'connected';
             setTimeout(() => {
-                badge.textContent = '✅ Mat baseline zeroed successfully!';
+                badge.textContent = '🟢 Mat Connected — Ready (Stand on mat)';
             }, 1200);
-        } catch (e) {
-            console.error('Recalibrate error:', e);
+        } catch (err) {
+            console.error('Threshold error:', err);
         }
     });
 }
@@ -1034,11 +1120,11 @@ function posFromEvent(e) {
         y: Math.max(0, Math.min(GRID_SIZE - 1, (clientY - rect.top) / (rect.height / GRID_SIZE))),
     };
 }
-gameCanvas.addEventListener('mousedown', (e) => { dragging = true; if (!connected) playerPos = posFromEvent(e); });
+gameCanvas.addEventListener('mousedown', (e) => { dragging = true; if (!liveCop) playerPos = posFromEvent(e); });
 window.addEventListener('mouseup', () => dragging = false);
-gameCanvas.addEventListener('mousemove', (e) => { if (dragging && !connected) playerPos = posFromEvent(e); });
-gameCanvas.addEventListener('touchstart', (e) => { if (!connected) playerPos = posFromEvent(e); });
-gameCanvas.addEventListener('touchmove', (e) => { if (!connected) playerPos = posFromEvent(e); });
+gameCanvas.addEventListener('mousemove', (e) => { if (dragging && !liveCop) playerPos = posFromEvent(e); });
+gameCanvas.addEventListener('touchstart', (e) => { if (!liveCop) playerPos = posFromEvent(e); });
+gameCanvas.addEventListener('touchmove', (e) => { if (!liveCop) playerPos = posFromEvent(e); });
 
 // Auto-start bridge on page load
 const initialPort = gamePortSelect ? gamePortSelect.value : 'auto';
