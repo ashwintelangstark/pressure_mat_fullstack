@@ -202,24 +202,39 @@
 </section>
 
 <style>
-  .hero-nav-btn{
-      position:absolute;
-      top:50%;
-      transform:translateY(-50%);
-      font-size:32px;
-      background:rgba(0,0,0,0.4);
-      color:#fff;
-      border:none;
-      padding:8px 12px;
-      cursor:pointer;
-      z-index:10;
+  .hero-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(38, 23, 5, 0.65);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #F59E0B;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  #prev-slide{ left:10px; }
-  #next-slide{ right:10px; }
+  #prev-slide { left: 24px; }
+  #next-slide { right: 24px; }
+  .hero-nav-btn:hover {
+      background: linear-gradient(135deg, #F59E0B, #D97706);
+      color: #ffffff;
+      border-color: #FBBF24;
+      box-shadow: 0 10px 30px rgba(245, 158, 11, 0.5);
+      transform: translateY(-50%) scale(1.1);
+  }
 
   #hero-carousel {
       position: relative;
-      height: 100vh; /* Full screen */
+      height: 100vh;
       overflow: hidden;
   }
 
@@ -227,6 +242,8 @@
       position: relative;
       width: 100%;
       height: 100vh;
+      display: flex;
+      align-items: center;
   }
 
   .hero-slide video {
@@ -252,81 +269,134 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.5); /* dark overlay */
+      background: linear-gradient(135deg, rgba(38, 23, 5, 0.78) 0%, rgba(245, 158, 11, 0.45) 100%);
       z-index: 1;
   }
 
   .welcome {
-      padding-top: 150px;
+      padding-top: 100px;
   }
 
-  .hero-slide {
-      position: relative;
-      height: 100vh;
-      overflow: hidden;
-  }
-
-  .hero-video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      z-index: 1;
-  }
-
-  .hero-slide .container {
-      position: relative;
-      z-index: 2;
-  }
   .service-item {
       min-height: 380px;
+      border-radius: 24px;
+      padding: 36px 28px;
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
       position: relative;
       overflow: hidden;
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      box-shadow: 0 10px 30px -5px rgba(245, 158, 11, 0.15), 0 4px 12px rgba(0, 0, 0, 0.03);
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
   }
 
   .service-item::before {
       content: "";
       position: absolute;
       inset: 0;
-      background: rgba(0,0,0,0.55);
+      background: linear-gradient(180deg, rgba(38, 23, 5, 0.25) 0%, rgba(38, 23, 5, 0.88) 100%);
+      transition: background 0.3s ease;
   }
 
-  .service-item .icon,
-  .service-item h3,
-  .service-item p,
-  .service-item a {
+  .service-item:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 20px 40px -5px rgba(245, 158, 11, 0.35);
+      border-color: #F59E0B;
+  }
+
+  .service-item .icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #F59E0B, #D97706);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+      border: 1px solid #FCD34D;
+      box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35);
       position: relative;
       z-index: 2;
-      color: white !important;
   }
 
-  .service-bg1 {
-      background-image: url("/static/img/foot_pressure.jpg");
+  .service-item .icon i {
+      font-size: 24px;
+      color: #ffffff;
   }
 
-  .service-bg2 {
-      background-image: url("/static/img/foot_progress.jpg");
+  .service-item h3 {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: #ffffff !important;
+      position: relative;
+      z-index: 2;
   }
 
-  .service-bg3 {
-      background-image: url("/static/img/foot_friendly.jpg");
+  .service-item p {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #FEF3C7 !important;
+      margin: 0;
+      position: relative;
+      z-index: 2;
   }
 
-  .service-bg4 {
-      background-image: url("/static/img/foot_exercise.jpg");
-  }
+  .service-bg1 { background-image: url("/static/img/foot_pressure.jpg"); }
+  .service-bg2 { background-image: url("/static/img/foot_progress.jpg"); }
+  .service-bg3 { background-image: url("/static/img/foot_friendly.jpg"); }
+  .service-bg4 { background-image: url("/static/img/foot_exercise.jpg"); }
+  .service-bg5 { background-image: url("/static/img/foot_monitoring.jpg"); }
+  .service-bg6 { background-image: url("/static/img/foot_report.jpg"); }
 
-  .service-bg5 {
-      background-image: url("/static/img/foot_monitoring.jpg");
+  .nav-tabs .nav-link {
+      font-family: 'Manrope', sans-serif;
+      font-weight: 700;
+      border-radius: 14px !important;
+      border: 1px solid #FEF3C7 !important;
+      background: #ffffff !important;
+      color: #78350F !important;
+      padding: 16px 22px !important;
+      margin-bottom: 12px !important;
+      transition: all 0.25s ease !important;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08) !important;
   }
-
-  .service-bg6 {
-      background-image: url("/static/img/foot_report.jpg");
+  .nav-tabs .nav-link:hover {
+      border-color: #F59E0B !important;
+      color: #F59E0B !important;
+  }
+  .nav-tabs .nav-link.active {
+      background: linear-gradient(135deg, #F59E0B, #D97706) !important;
+      color: #ffffff !important;
+      border: none !important;
+      box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35) !important;
+  }
+  .tab-pane .details {
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 36px;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      box-shadow: 0 10px 30px -5px rgba(245, 158, 11, 0.12);
+  }
+  .tab-pane .details h3 {
+      font-size: 24px;
+      font-weight: 800;
+      color: #261705;
+      margin-bottom: 12px;
+  }
+  .tab-pane .details p {
+      color: #78350F;
+      font-size: 15px;
+      line-height: 1.7;
+  }
+  .tab-pane img {
+      border-radius: 20px;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      box-shadow: 0 10px 30px -5px rgba(245, 158, 11, 0.15);
   }
 </style>
 
