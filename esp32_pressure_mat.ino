@@ -47,7 +47,7 @@ int baseline[ROWS][COLS];
 
 // --- Tuning Parameters ---
 const int SETTLE_TIME_US = 65;    // Settle time for MUX switching
-int touchThreshold = 55;          // Calibrated noise-free threshold
+int touchThreshold = 20;          // Calibrated noise-free threshold
 const int FRAME_DELAY_MS = 8;     // ~30 FPS real-time scan
 
 // 60-byte payload buffer (20 rows * 3 bytes)
@@ -141,7 +141,7 @@ void calibrate() {
   }
 
   // Set threshold strictly above measured noise floor (min 50)
-  touchThreshold = max(50, maxNoise + 12);
+  touchThreshold = max(20, maxNoise + 8);
 
   // Disable muxes after calibration
   digitalWrite(EN_MUX_A, HIGH);

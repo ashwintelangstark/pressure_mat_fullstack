@@ -20,7 +20,7 @@ import requests
 SERVER_URL = "http://localhost:8000"
 BAUD_RATE = 115200
 POST_INTERVAL = 0.035  # ~28 FPS stream rate matching physical scan updates
-DEFAULT_THRESHOLD = 55  # Calibrated zero-noise floor: 0 noise at rest, instant touch response
+DEFAULT_THRESHOLD = 20  # Calibrated zero-noise floor: 0 noise at rest, instant touch response
 
 http_session = requests.Session()
 
