@@ -39,41 +39,50 @@ def pick_port():
 
 def unpack_frame(packet):
     """
-    Unpack 60-byte payload into 20x20 binary matrix (400 sensor points).
-    Each row has 3 bytes (7 bits + 7 bits + 6 bits = 20 bits).
-    Zero collision with 0xFF / 0xFE framing markers.
+    Unpack 400-byte continuous analog pressure payload (20x20 matrix).
+    Each byte is 0..127 representing cell pressure intensity.
+    Supports both 400-byte analog and legacy 60-byte bitmask packets.
     """
-    mat = np.zeros((20, 20), dtype=int)
-    for row in range(20):
-        offset = row * 3
-        if offset >= len(packet):
-            break
-        b0 = packet[offset]
-        b1 = packet[offset + 1] if offset + 1 < len(packet) else 0
-        b2 = packet[offset + 2] if offset + 2 < len(packet) else 0
-        for bit in range(7):
-            if (b0 >> bit) & 0x01:
-                mat[row, bit] = 1
-            if (b1 >> bit) & 0x01:
-                mat[row, 7 + bit] = 1
-        for bit in range(6):
-            if (b2 >> bit) & 0x01:
-                mat[row, 14 + bit] = 1
-    return mat
+    if len(packet) == 400:
+        arr = np.frombuffer(packet, dtype=np.uint8).astype(int)
+        return arr.reshape((20, 20))
+    elif len(packet) == 60:
+        mat = np.zeros((20, 20), dtype=int)
+        for row in range(20):
+            offset = row * 3
+            if offset >= len(packet):
+                break
+            b0 = packet[offset]
+            b1 = packet[offset + 1] if offset + 1 < len(packet) else 0
+            b2 = packet[offset + 2] if offset + 2 < len(packet) else 0
+            for bit in range(7):
+                if (b0 >> bit) & 0x01:
+                    mat[row, bit] = 50
+                if (b1 >> bit) & 0x01:
+                    mat[row, 7 + bit] = 50
+            for bit in range(6):
+                if (b2 >> bit) & 0x01:
+                    mat[row, 14 + bit] = 50
+        return mat
+    return np.zeros((20, 20), dtype=int)
 
 
 def extract_latest_frame(buffer):
     """
-    Scan buffer from newest bytes backwards for 0xFE delimiter preceded by 0xFF marker (exactly 60 byte payload).
-    Purges older buffer bytes to maintain 0ms queue latency.
+    Scan buffer for 0xFE preceded by 0xFF (400-byte analog payload or 60-byte payload).
     """
+    for i in range(len(buffer) - 1, 400, -1):
+        if buffer[i] == 0xFE and buffer[i - 401] == 0xFF:
+            payload = buffer[i - 400 : i]
+            del buffer[: i + 1]
+            return payload
     for i in range(len(buffer) - 1, 60, -1):
         if buffer[i] == 0xFE and buffer[i - 61] == 0xFF:
             payload = buffer[i - 60 : i]
             del buffer[: i + 1]
             return payload
-    if len(buffer) > 300:
-        del buffer[:-128]
+    if len(buffer) > 1000:
+        del buffer[:-512]
     return None
 
 
@@ -269,10 +278,10 @@ def main():
                     active_count = int(np.count_nonzero(raw_mat > 0))
 
                     if active_count > 0:
-                        # Convert binary active cells to pressure values (50 kPa to 180 kPa scale)
-                        pressure_map = (raw_mat.astype(float) * 120.0).astype(int).tolist()
-                        total_pressure = float(active_count * 120.0)
-                        peak_pressure = 150.0 if active_count >= 10 else 100.0
+                        active_mask = raw_mat > 0
+                        pressure_map = np.where(active_mask, (raw_mat.astype(float) * 1.55).astype(int), 0).tolist()
+                        total_pressure = float(np.sum(pressure_map))
+                        peak_pressure = float(np.max(pressure_map))
                         touching = True
 
                         cop = calculate_cop(raw_mat)

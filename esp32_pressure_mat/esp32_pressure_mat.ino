@@ -1,20 +1,8 @@
 /*
- * 20x20 FSR Pressure Matrix Firmware for ESP32 - High Precision Zero-Noise Edition
+ * 20x20 FSR Pressure Matrix Firmware - Dynamic Analog Pressure Edition
  * 
- * Hardware Pinout:
- *   - Column Address: s0=18, s1=19, s2=21, s3=22
- *   - Column Enables: EN_MUX_C=16 (Cols 0-15), EN_MUX_D=4 (Cols 16-19)
- *   - Row Address:    w0=25, w1=26, w2=27, w3=14
- *   - Row Enables:    EN_MUX_A=13 (Rows 0-15), EN_MUX_B=17 (Rows 16-19)
- *   - Signal Pins:    DRIVE_PIN=32 (3.3V Output Drive)
- *                     SENSE_PIN=33 (ADC1_CH5 with internal INPUT_PULLDOWN)
- * 
- * Sensing Architecture:
- *   - SENSE_PIN on INPUT_PULLDOWN holds unpressed matrix at GND (0-48 counts).
- *   - Eliminates 100% of floating trace capacitance and AC mains (50Hz) hum.
- *   - When pressed, FSR resistance drops from >1M down to 1k-10k, pulling sense UP.
- *   - Zero resting phantom cells (0 active at rest).
- *   - Instant high-fidelity response when touched.
+ * Transmits 400 continuous 7-bit pressure intensity values (0..127) per frame
+ * providing full thermal color gradient variation from soft touch to heavy standing pressure.
  */
 
 #include <Arduino.h>
@@ -47,11 +35,11 @@ int baseline[ROWS][COLS];
 
 // --- Tuning Parameters ---
 const int SETTLE_TIME_US = 65;    // Settle time for MUX switching
-int touchThreshold = 8;          // Calibrated noise-free threshold
-const int FRAME_DELAY_MS = 8;     // ~30 FPS real-time scan
+int touchThreshold = 6;           // High-sensitivity zero-noise floor
+const int FRAME_DELAY_MS = 6;     // Real-time scan loop
 
-// 60-byte payload buffer (20 rows * 3 bytes)
-byte packetBuffer[60];
+// 400-byte payload buffer (20x20 analog cells)
+byte packetBuffer[400];
 
 void selectRow(byte r) {
   digitalWrite(EN_MUX_A, HIGH);
@@ -94,7 +82,6 @@ void selectCol(byte c) {
 int readSensoredCell() {
   delayMicroseconds(SETTLE_TIME_US);
 
-  // Take 2 reads and average
   int s1 = analogRead(SENSE_PIN);
   delayMicroseconds(8);
   int s2 = analogRead(SENSE_PIN);
@@ -103,14 +90,12 @@ int readSensoredCell() {
 }
 
 void calibrate() {
-  // Clear baseline
   for (byte r = 0; r < ROWS; r++) {
     for (byte c = 0; c < COLS; c++) {
       baseline[r][c] = 0;
     }
   }
 
-  // Accumulate 16 passes for clean resting baseline
   for (int pass = 0; pass < 16; pass++) {
     for (byte r = 0; r < ROWS; r++) {
       selectRow(r);
@@ -128,7 +113,6 @@ void calibrate() {
     }
   }
 
-  // Measure ambient peak noise floor post-calibration
   int maxNoise = 0;
   for (byte r = 0; r < ROWS; r++) {
     selectRow(r);
@@ -140,10 +124,8 @@ void calibrate() {
     }
   }
 
-  // Set threshold strictly above measured noise floor (min 50)
   touchThreshold = max(6, maxNoise + 3);
 
-  // Disable muxes after calibration
   digitalWrite(EN_MUX_A, HIGH);
   digitalWrite(EN_MUX_B, HIGH);
   digitalWrite(EN_MUX_C, HIGH);
@@ -194,13 +176,8 @@ void setup() {
 void loop() {
   handleSerialCommands();
 
-  // Scan all 20 rows and 20 columns
   for (byte r = 0; r < ROWS; r++) {
     selectRow(r);
-
-    byte b0 = 0; // Cols 0..6  (7 bits: 0..127)
-    byte b1 = 0; // Cols 7..13 (7 bits: 0..127)
-    byte b2 = 0; // Cols 14..19 (6 bits: 0..63)
 
     for (byte c = 0; c < COLS; c++) {
       selectCol(c);
@@ -208,33 +185,25 @@ void loop() {
       int raw = readSensoredCell();
       int delta = raw - baseline[r][c];
 
+      byte val = 0;
       if (delta > touchThreshold) {
-        if (c < 7) {
-          b0 |= (1 << c);
-        } else if (c < 14) {
-          b1 |= (1 << (c - 7));
-        } else {
-          b2 |= (1 << (c - 14));
-        }
+        // Map delta (6..500) to 7-bit clean pressure value (1..127)
+        int scaled = ((delta - touchThreshold) * 126) / 450 + 1;
+        val = (byte)constrain(scaled, 1, 127);
       }
+      packetBuffer[r * COLS + c] = val;
     }
-
-    byte offset = r * 3;
-    packetBuffer[offset]     = b0;
-    packetBuffer[offset + 1] = b1;
-    packetBuffer[offset + 2] = b2;
   }
 
-  // Disable muxes when not scanning
   digitalWrite(EN_MUX_A, HIGH);
   digitalWrite(EN_MUX_B, HIGH);
   digitalWrite(EN_MUX_C, HIGH);
   digitalWrite(EN_MUX_D, HIGH);
 
-  // Transmit 62-byte binary frame: [0xFF, 60 bytes (all <= 127), 0xFE]
-  Serial.write(0xFF);                  // Start of Frame
-  Serial.write(packetBuffer, 60);      // 20x20 Matrix data (7-bit clean)
-  Serial.write(0xFE);                  // End of Frame
+  // Send 402-byte frame: [0xFF, 400 bytes (0..127), 0xFE]
+  Serial.write(0xFF);
+  Serial.write(packetBuffer, 400);
+  Serial.write(0xFE);
   Serial.flush();
 
   delay(FRAME_DELAY_MS);
