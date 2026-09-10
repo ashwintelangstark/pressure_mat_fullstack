@@ -144,6 +144,8 @@ def serial_reader_thread(ser_ref, state, threshold_val):
     """Dedicated background serial reader thread for zero-latency frame ingestion."""
     buffer = bytearray()
     err_count = 0
+    current_frame_rows = []
+    text_acc = ""
 
     while state.running:
         ser = ser_ref[0]
@@ -156,6 +158,9 @@ def serial_reader_thread(ser_ref, state, threshold_val):
             chunk = ser.read(waiting if waiting > 0 else 1)
             err_count = 0
         except Exception as e:
+            if 'returned no data' in str(e):
+                time.sleep(0.01)
+                continue
             err_count += 1
             if err_count % 30 == 1:
                 print(f"Serial read warning ({err_count}): {e}")
@@ -184,6 +189,27 @@ def serial_reader_thread(ser_ref, state, threshold_val):
                     except Exception:
                         time.sleep(0.5)
             continue
+
+        if chunk:
+            text_acc += chunk.decode('utf-8', errors='ignore')
+            if '\n' in text_acc:
+                lines = text_acc.split('\n')
+                text_acc = lines[-1]
+                for l in lines[:-1]:
+                    line_str = l.strip()
+                    if '---' in line_str or 'Matrix' in line_str:
+                        current_frame_rows = []
+                    elif line_str:
+                        parts = line_str.split()
+                        if len(parts) == 20 and all(p.lstrip('-').isdigit() for p in parts):
+                            row = [int(p) for p in parts]
+                            current_frame_rows.append(row)
+                            if len(current_frame_rows) == 20:
+                                raw_mat = np.array(current_frame_rows, dtype=int)
+                                with state.lock:
+                                    state.latest_raw = raw_mat
+                                    state.connected = True
+                                current_frame_rows = []
 
         if chunk:
             buffer.extend(chunk)
