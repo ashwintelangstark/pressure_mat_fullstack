@@ -1,8 +1,8 @@
 /*
- * 20x20 FSR Pressure Matrix Firmware - Dynamic Analog Pressure Edition
+ * 20x20 FSR Pressure Matrix Firmware - Extra-Sensitive Motion Edition
  * 
- * Transmits 400 continuous 7-bit pressure intensity values (0..127) per frame
- * providing full thermal color gradient variation from soft touch to heavy standing pressure.
+ * Configured with ultra-low noise floor (Threshold = 2) and high ADC gain
+ * to detect the slightest shifts in weight, finger touches, and subtle movements.
  */
 
 #include <Arduino.h>
@@ -35,8 +35,8 @@ int baseline[ROWS][COLS];
 
 // --- Tuning Parameters ---
 const int SETTLE_TIME_US = 65;    // Settle time for MUX switching
-int touchThreshold = 6;           // High-sensitivity zero-noise floor
-const int FRAME_DELAY_MS = 6;     // Real-time scan loop
+int touchThreshold = 2;           // Ultra-sensitive threshold for slightest motion
+const int FRAME_DELAY_MS = 4;     // ~40 FPS high-rate scan loop
 
 // 400-byte payload buffer (20x20 analog cells)
 byte packetBuffer[400];
@@ -83,7 +83,7 @@ int readSensoredCell() {
   delayMicroseconds(SETTLE_TIME_US);
 
   int s1 = analogRead(SENSE_PIN);
-  delayMicroseconds(8);
+  delayMicroseconds(6);
   int s2 = analogRead(SENSE_PIN);
 
   return (s1 + s2) >> 1;
@@ -124,7 +124,8 @@ void calibrate() {
     }
   }
 
-  touchThreshold = max(6, maxNoise + 3);
+  // Set threshold to ultra-low level (min 2, maxNoise + 1)
+  touchThreshold = max(2, maxNoise + 1);
 
   digitalWrite(EN_MUX_A, HIGH);
   digitalWrite(EN_MUX_B, HIGH);
@@ -139,7 +140,7 @@ void handleSerialCommands() {
       calibrate();
     } else if (cmd == 't' || cmd == 'T') {
       int val = Serial.parseInt();
-      if (val >= 3 && val <= 350) {
+      if (val >= 1 && val <= 350) {
         touchThreshold = val;
       }
     } else if (cmd == 'p' || cmd == 'P') {
@@ -187,8 +188,8 @@ void loop() {
 
       byte val = 0;
       if (delta > touchThreshold) {
-        // Map delta (6..500) to 7-bit clean pressure value (1..127)
-        int scaled = ((delta - touchThreshold) * 126) / 450 + 1;
+        // High-gain scaling: even a tiny delta of 2-5 ADC counts generates strong signal output
+        int scaled = ((delta - touchThreshold) * 126) / 120 + 15;
         val = (byte)constrain(scaled, 1, 127);
       }
       packetBuffer[r * COLS + c] = val;

@@ -739,7 +739,7 @@ def api_game_threshold(request, patient_id=None):
     try:
         data = json.loads(request.body)
         th = int(data.get('threshold', 15))
-        th = max(3, min(400, th))
+        th = max(1, min(400, th))
         base_dir = Path(__file__).parent.parent
         if patient_id:
             cmd_file = base_dir / "pressure_app" / f"cmd_{patient_id}.txt"
