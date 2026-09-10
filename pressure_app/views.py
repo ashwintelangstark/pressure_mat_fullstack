@@ -469,11 +469,6 @@ def get_patient_readings(request, patient_id):
 def save_video(request):
     if request.method == 'POST':
         try:
-            print("POST DATA =", request.POST)
-            print("FILES =", request.FILES)
-            print("PATIENT ID =", request.POST.get('patient_id'))
-            print("VIDEO =", request.FILES.get('video'))
-
             patient_id = request.POST.get('patient_id')
             video_file = request.FILES.get('video')
             notes = request.POST.get('notes', '')
@@ -487,63 +482,18 @@ def save_video(request):
                 defaults={'name': f"Patient {patient_id}"}
             )
 
-            # Save original file temporarily
-            temp_filename = f"{uuid.uuid4()}_input.mp4"
-            temp_input_path = os.path.join(settings.MEDIA_ROOT, 'temp', temp_filename)
-
-            os.makedirs(os.path.dirname(temp_input_path), exist_ok=True)
-            with open(temp_input_path, 'wb+') as destination:
-                for chunk in video_file.chunks():
-                    destination.write(chunk)
-
-            # Define output (converted) path
-            converted_filename = f"{uuid.uuid4()}_converted.mp4"
-            converted_path = os.path.join(settings.MEDIA_ROOT, 'videos', converted_filename)
-            os.makedirs(os.path.dirname(converted_path), exist_ok=True)
-
-            ffmpeg_command = [
-                'ffmpeg',
-                '-i', temp_input_path,
-                '-vf', 'setpts=4.0*PTS',
-                '-filter:a', 'atempo=0.5,atempo=0.5',
-                '-vcodec', 'libx264',
-                '-acodec', 'aac',
-                '-strict', 'experimental',
-                '-y',
-                converted_path
-            ]
-
-            # subprocess.run(ffmpeg_command, check=True)
-            result = subprocess.run(
-                ffmpeg_command,
-                capture_output=True,
-                text=True
+            # Save video directly to PatientVideo model
+            video = PatientVideo.objects.create(
+                patient=patient,
+                video_file=video_file,
+                notes=notes
             )
-
-            print(result.stdout)
-            print(result.stderr)
-
-            # Open converted video file and save to model
-            with open(converted_path, 'rb') as f:
-                django_file = File(f)
-                video = PatientVideo.objects.create(
-                    patient=patient,
-                    notes=notes
-                )
-                video.video_file.save(converted_filename, django_file, save=True)
-
-            # Cleanup temporary files
-            os.remove(temp_input_path)
-            os.remove(converted_path)
 
             return JsonResponse({
                 'success': True,
                 'video_url': video.video_file.url,
-                'message': 'Video uploaded and converted successfully'
+                'message': 'Video saved successfully'
             })
-
-        except subprocess.CalledProcessError as e:
-            return JsonResponse({'success': False, 'error': f'FFmpeg error: {str(e)}'}, status=500)
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
 

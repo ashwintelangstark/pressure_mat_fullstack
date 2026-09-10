@@ -907,37 +907,106 @@
         const stopRecBtn = document.getElementById('stop-rec-btn');
         const recStatus = document.getElementById('rec-status');
 
+        let mediaRecorder = null;
+        let recordedVideoChunks = [];
+
         startRecBtn.addEventListener('click', () => {
             isRecording = true;
             recordedFrames = [];
+            recordedVideoChunks = [];
+
+            try {
+                const stream = vizCanvas.captureStream(30);
+                let mimeType = 'video/webm;codecs=vp9';
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'video/webm;codecs=vp8';
+                }
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'video/webm';
+                }
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = '';
+                }
+
+                mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0) {
+                        recordedVideoChunks.push(event.data);
+                    }
+                };
+                mediaRecorder.start(100);
+            } catch (e) {
+                console.error("Canvas MediaRecorder start error:", e);
+            }
+
             startRecBtn.style.display = 'none';
             stopRecBtn.style.display = 'flex';
-            recStatus.textContent = 'Status: Live Recording Active';
-            recStatus.style.color = '#10b981';
+            recStatus.textContent = 'Status: Live Heatmap Video Recording Active 🔴';
+            recStatus.style.color = '#ef4444';
         });
 
         stopRecBtn.addEventListener('click', () => {
             isRecording = false;
             startRecBtn.style.display = 'flex';
             stopRecBtn.style.display = 'none';
-            recStatus.textContent = 'Status: Session Saved';
-            recStatus.style.color = '#3b82f6';
+            recStatus.textContent = 'Status: Saving Session & Video to DB... ⏳';
+            recStatus.style.color = '#f59e0b';
 
-            const notes = document.getElementById('session-notes').value || "Routine pressure mat recording";
-            fetch('/api/save_session/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    patient_id: patientId,
-                    pressure_data: currentPressureMap,
-                    displacement_x: totalDispX,
-                    displacement_y: totalDispY,
-                    movement_status: liveMovementStatus,
-                    notes: notes
-                })
-            }).then(r => r.json()).then(data => {
-                alert("Session recorded and saved successfully for Patient " + patientId + "!");
-            });
+            const notes = document.getElementById('session-notes').value || "Routine pressure mat heatmap recording";
+
+            const saveSessionAndVideo = async (videoBlob) => {
+                try {
+                    await fetch('/api/save_session/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            patient_id: patientId,
+                            readings: [{
+                                timestamp: new Date().toISOString(),
+                                pressure_data: currentPressureMap,
+                                displacement_x: totalDispX,
+                                displacement_y: totalDispY,
+                                movement_status: liveMovementStatus
+                            }]
+                        })
+                    });
+                } catch (err) {
+                    console.error("Save session error:", err);
+                }
+
+                if (videoBlob && videoBlob.size > 0) {
+                    const formData = new FormData();
+                    const filename = `heatmap_session_${patientId}_${Date.now()}.webm`;
+                    formData.append('video', videoBlob, filename);
+                    formData.append('patient_id', patientId);
+                    formData.append('notes', notes);
+
+                    try {
+                        const vidRes = await fetch('/api/save_video/', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const vidData = await vidRes.json();
+                        console.log("Video saved to DB:", vidData);
+                    } catch (err) {
+                        console.error("Save video error:", err);
+                    }
+                }
+
+                recStatus.textContent = 'Status: Session & Video Saved to DB';
+                recStatus.style.color = '#10b981';
+                alert("Session video and heatmap readings recorded & saved successfully for Patient " + patientId + "!");
+            };
+
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedVideoChunks, { type: mediaRecorder.mimeType || 'video/webm' });
+                    saveSessionAndVideo(blob);
+                };
+                mediaRecorder.stop();
+            } else {
+                saveSessionAndVideo(null);
+            }
         });
 
         let isFetchingMat = false;

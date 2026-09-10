@@ -85,14 +85,16 @@
                 {% for video in videos %}
                 <div class="session-card">
 
-                    <h4><i class="fas fa-video" style="color: #F59E0B; margin-right: 6px;"></i> {{ video.timestamp|date:"M d, Y H:i" }}</h4>
+                    <h4><i class="fas fa-video" style="color: #F59E0B; margin-right: 6px;"></i> Session Video: {{ video.timestamp|date:"M d, Y H:i" }}</h4>
 
-                    <video controls>
-                        <source src="{{ video.video_file.url }}" type="video/mp4">
+                    <video controls src="{{ video.video_file.url }}" style="width: 100%; height: 240px; object-fit: contain; background: #0f172a; border-radius: 12px; border: 1px solid #FEF3C7;">
+                        <source src="{{ video.video_file.url }}">
+                        Your browser does not support HTML5 video playback.
                     </video>
 
                     <div class="session-meta">
                         🕒 Recorded {{ video.timestamp|timesince }} ago
+                        {% if video.notes %}<br>📝 <strong>Notes:</strong> {{ video.notes }}{% endif %}
                     </div>
 
                 </div>
@@ -100,7 +102,7 @@
                 {% empty %}
                 <div class="no-sessions">
                     <i class="fas fa-folder-open" style="font-size: 2rem; color: #FCD34D; margin-bottom: 12px; display: block;"></i>
-                    No recorded sessions found.
+                    No recorded sessions found for this patient. Click "Start Recording" on the pressure mat page to record a live heatmap video.
                 </div>
                 {% endfor %}
 
