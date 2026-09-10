@@ -153,51 +153,57 @@ def serial_reader_thread(ser_ref, state, threshold_val):
             time.sleep(0.1)
             continue
 
+        line_bytes = b""
         try:
-            waiting = ser.in_waiting
-            chunk = ser.read(waiting if waiting > 0 else 1)
+            line_bytes = ser.readline()
             err_count = 0
         except Exception as e:
-            if 'returned no data' in str(e):
-                time.sleep(0.01)
-                continue
-            err_count += 1
-            if err_count % 30 == 1:
-                print(f"Serial read warning ({err_count}): {e}")
-            time.sleep(0.05)
-            if err_count > 30:
-                print("Serial connection lost. Attempting reconnect...")
-                with state.lock:
-                    state.connected = False
-                    state.latest_raw = None
-                try:
-                    ser.close()
-                except Exception:
-                    pass
-                ser_ref[0] = None
-                for _ in range(12):
-                    if not state.running:
-                        break
+            err_msg = str(e)
+            if 'returned no data' not in err_msg and 'Resource temporarily unavailable' not in err_msg:
+                err_count += 1
+                if err_count % 30 == 1:
+                    print(f"Serial read warning ({err_count}): {e}")
+                time.sleep(0.05)
+                if err_count > 30:
+                    print("Serial connection lost. Attempting reconnect...")
+                    with state.lock:
+                        state.connected = False
+                        state.latest_raw = None
                     try:
-                        new_ser = serial.Serial(state.port, BAUD_RATE, timeout=0.05)
-                        ser_ref[0] = new_ser
-                        run_mat_calibration(new_ser, threshold=threshold_val[0])
-                        with state.lock:
-                            state.connected = True
-                        print(f"Reconnected to serial port {state.port}!")
-                        break
+                        ser.close()
                     except Exception:
-                        time.sleep(0.5)
-            continue
+                        pass
+                    ser_ref[0] = None
+                    for _ in range(12):
+                        if not state.running:
+                            break
+                        try:
+                            new_ser = serial.Serial(state.port, BAUD_RATE, timeout=0.5)
+                            try:
+                                new_ser.dtr = False
+                                new_ser.rts = False
+                            except Exception:
+                                pass
+                            time.sleep(0.8)
+                            ser_ref[0] = new_ser
+                            run_mat_calibration(new_ser, threshold=threshold_val[0])
+                            with state.lock:
+                                state.connected = True
+                            print(f"Reconnected to serial port {state.port}!")
+                            break
+                        except Exception:
+                            time.sleep(0.5)
+                    continue
 
-        if chunk:
-            text_acc += chunk.decode('utf-8', errors='ignore')
+        if line_bytes:
+            print(f"LINE READ ({len(line_bytes)}): {repr(line_bytes)}")
+            text_acc += line_bytes.decode('utf-8', errors='ignore')
             if '\n' in text_acc:
                 lines = text_acc.split('\n')
                 text_acc = lines[-1]
                 for l in lines[:-1]:
                     line_str = l.strip()
-                    if '---' in line_str or 'Matrix' in line_str:
+                    if '---' in line_str or 'matrix' in line_str.lower():
                         current_frame_rows = []
                     elif line_str:
                         parts = line_str.split()
@@ -211,15 +217,13 @@ def serial_reader_thread(ser_ref, state, threshold_val):
                                     state.connected = True
                                 current_frame_rows = []
 
-        if chunk:
-            buffer.extend(chunk)
-
-        payload = extract_latest_frame(buffer)
-        if payload is not None:
-            raw_mat = unpack_frame(payload)
-            with state.lock:
-                state.latest_raw = raw_mat
-                state.connected = True
+            buffer.extend(line_bytes)
+            payload = extract_latest_frame(buffer)
+            if payload is not None:
+                raw_mat = unpack_frame(payload)
+                with state.lock:
+                    state.latest_raw = raw_mat
+                    state.connected = True
 
 
 def main():
@@ -239,7 +243,13 @@ def main():
     ser = None
     for attempt in range(6):
         try:
-            ser = serial.Serial(port, BAUD_RATE, timeout=0.05)
+            ser = serial.Serial(port, BAUD_RATE, timeout=0.5)
+            try:
+                ser.dtr = False
+                ser.rts = False
+            except Exception:
+                pass
+            time.sleep(0.8)
             break
         except Exception as e:
             print(f"Port {port} busy or unavailable (attempt {attempt+1}/6): {e}")
