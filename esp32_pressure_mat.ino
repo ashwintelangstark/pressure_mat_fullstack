@@ -1,8 +1,13 @@
 /*
- * 20x20 FSR Pressure Matrix Firmware - Extra-Sensitive Motion Edition
+ * 20x20 FSR Pressure Matrix Firmware - Serial Monitor 20x20 Grid Edition
  * 
- * Configured with ultra-low noise floor (Threshold = 2) and high ADC gain
- * to detect the slightest shifts in weight, finger touches, and subtle movements.
+ * Hardware Pinout:
+ *   - Column Address: s0=18, s1=19, s2=21, s3=22
+ *   - Column Enables: EN_MUX_C=16 (Cols 0-15), EN_MUX_D=4 (Cols 16-19)
+ *   - Row Address:    w0=25, w1=26, w2=27, w3=14
+ *   - Row Enables:    EN_MUX_A=13 (Rows 0-15), EN_MUX_B=17 (Rows 16-19)
+ *   - Signal Pins:    DRIVE_PIN=32 (3.3V Output Drive)
+ *                     SENSE_PIN=33 (ADC1_CH5 with internal INPUT_PULLDOWN)
  */
 
 #include <Arduino.h>
@@ -35,11 +40,8 @@ int baseline[ROWS][COLS];
 
 // --- Tuning Parameters ---
 const int SETTLE_TIME_US = 65;    // Settle time for MUX switching
-int touchThreshold = 2;           // Ultra-sensitive threshold for slightest motion
-const int FRAME_DELAY_MS = 4;     // ~40 FPS high-rate scan loop
-
-// 400-byte payload buffer (20x20 analog cells)
-byte packetBuffer[400];
+int touchThreshold = 4;           // Low noise threshold for instant touch
+const int FRAME_DELAY_MS = 60;    // Clean refresh rate for Serial Monitor display
 
 void selectRow(byte r) {
   digitalWrite(EN_MUX_A, HIGH);
@@ -124,8 +126,7 @@ void calibrate() {
     }
   }
 
-  // Set threshold to ultra-low level (min 2, maxNoise + 1)
-  touchThreshold = max(2, maxNoise + 1);
+  touchThreshold = max(4, maxNoise + 2);
 
   digitalWrite(EN_MUX_A, HIGH);
   digitalWrite(EN_MUX_B, HIGH);
@@ -143,9 +144,6 @@ void handleSerialCommands() {
       if (val >= 1 && val <= 350) {
         touchThreshold = val;
       }
-    } else if (cmd == 'p' || cmd == 'P') {
-      Serial.print("PONG:TH=");
-      Serial.println(touchThreshold);
     }
   }
 }
@@ -177,6 +175,8 @@ void setup() {
 void loop() {
   handleSerialCommands();
 
+  Serial.println("--- 20x20 Pressure Matrix ---");
+
   for (byte r = 0; r < ROWS; r++) {
     selectRow(r);
 
@@ -186,26 +186,27 @@ void loop() {
       int raw = readSensoredCell();
       int delta = raw - baseline[r][c];
 
-      byte val = 0;
+      int val = 0;
       if (delta > touchThreshold) {
-        // High-gain scaling: even a tiny delta of 2-5 ADC counts generates strong signal output
-        int scaled = ((delta - touchThreshold) * 126) / 120 + 15;
-        val = (byte)constrain(scaled, 1, 127);
+        // Map delta to readable 1..150 pressure intensity number
+        val = constrain(((delta - touchThreshold) * 140) / 120 + 1, 1, 150);
       }
-      packetBuffer[r * COLS + c] = val;
+
+      if (val < 10) {
+        Serial.print("  ");
+      } else if (val < 100) {
+        Serial.print(" ");
+      }
+      Serial.print(val);
+      Serial.print(" ");
     }
+    Serial.println();
   }
 
   digitalWrite(EN_MUX_A, HIGH);
   digitalWrite(EN_MUX_B, HIGH);
   digitalWrite(EN_MUX_C, HIGH);
   digitalWrite(EN_MUX_D, HIGH);
-
-  // Send 402-byte frame: [0xFF, 400 bytes (0..127), 0xFE]
-  Serial.write(0xFF);
-  Serial.write(packetBuffer, 400);
-  Serial.write(0xFE);
-  Serial.flush();
 
   delay(FRAME_DELAY_MS);
 }
