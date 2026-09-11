@@ -32,7 +32,13 @@ def pick_port():
     for p in ports:
         dev = p.device.lower()
         desc = (p.description or "").lower()
-        if "usb" in dev or "cp210" in desc or "ch340" in desc or "uart" in desc:
+        if "debug" in dev or "bluetooth" in dev:
+            continue
+        if "usb" in dev or "esp32" in dev or "cp210" in desc or "ch340" in desc or "uart" in desc:
+            return p.device
+    for p in ports:
+        dev = p.device.lower()
+        if "debug" not in dev and "bluetooth" not in dev:
             return p.device
     return ports[0].device
 

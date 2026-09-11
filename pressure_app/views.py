@@ -551,6 +551,7 @@ def get_available_ports():
                 'description': f"{p.device} - {p.description}" if p.description and p.description != p.device else p.device
             }
             for p in ports
+            if 'debug' not in p.device.lower() and 'bluetooth' not in p.device.lower()
         ]
     except Exception:
         return []
